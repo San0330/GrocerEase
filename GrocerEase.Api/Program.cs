@@ -1,7 +1,12 @@
+using GrocerEase.Application.Authentication;
+
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddControllers();
+builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
 
 var app = builder.Build();
 
-app.MapGet("/test", () => "test");
+app.MapControllers();
 
 app.Run();
