@@ -21,6 +21,10 @@ appsettings.Development.json
 *.env
 .env
 
+# AI tool directories
+.aider-desk/
+.claude/
+
 # OS
 .DS_Store
 Thumbs.db
