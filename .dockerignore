@@ -1,0 +1,23 @@
+# Exclude build output directories from every project
+# These are generated locally and must NOT be copied into the container —
+# doing so overwrites the output of `dotnet restore` run inside the container,
+# causing packages to appear "missing" at publish time (NETSDK1064).
+**/bin/
+**/obj/
+
+# Exclude git metadata — not needed inside the image
+.git
+.gitignore
+
+# Exclude Docker files themselves — no need to nest them in the image
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Exclude local IDE/editor folders
+.vs/
+.vscode/
+.idea/
+
+# Exclude user secrets (never bake secrets into an image)
+**/appsettings.Development.json

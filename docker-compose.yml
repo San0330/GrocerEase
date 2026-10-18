@@ -1,0 +1,62 @@
+services:
+
+  # ── GrocerEase API ──────────────────────────────────────────────────────────
+  grocerease.api:
+    # Build the image from the Dockerfile in the current directory
+    build:
+      context: .           # root of the solution (where Dockerfile lives)
+      dockerfile: Dockerfile
+
+    # Name the running container
+    container_name: grocerease-api
+
+    # Map host port 5000 → container port 8080 (access via http://localhost:5000)
+    ports:
+      - "5000:8080"
+
+    # Set environment variables inside the container
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+
+    # Restart the container automatically if it crashes
+    restart: on-failure
+
+    # Wait for the database to be healthy before starting the API
+    depends_on:
+      grocerease.db:
+        condition: service_healthy
+
+  # ── PostgreSQL Database ─────────────────────────────────────────────────────
+  grocerease.db:
+    # Use the official PostgreSQL image
+    image: postgres:16
+
+    container_name: grocerease-db
+
+    # Postgres configuration via environment variables
+    environment:
+      POSTGRES_DB: GrocerEaseDb        # name of the database to create
+      POSTGRES_USER: postgres          # superuser login
+      POSTGRES_PASSWORD: postgres      # superuser password (change in production!)
+
+    # Map host port 5432 → container port 5432 (connect via localhost:5432)
+    ports:
+      - "5432:5432"
+
+    # Persist database data across container restarts using a named volume
+    volumes:
+      - grocerease-db-data:/var/lib/postgresql/data
+
+    # Health check — docker-compose waits until Postgres is ready before starting the API
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s    # check every 5 seconds
+      timeout: 5s     # fail if no response within 5 seconds
+      retries: 5      # retry up to 5 times before marking unhealthy
+
+    restart: on-failure
+
+# ── Named Volumes ────────────────────────────────────────────────────────────
+volumes:
+  grocerease-db-data:
+    # Docker manages this volume — data survives container restarts and removals
