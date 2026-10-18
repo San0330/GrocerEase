@@ -1,3 +1,4 @@
+using GrocerEase.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace GrocerEase.Infrastructure.Persistence;
@@ -8,6 +9,5 @@ public class AppDbContext : DbContext
     {
     }
 
-    // DbSet properties will be added here as domain entities are created
-    // e.g. public DbSet<User> Users { get; set; } = null!;
+    public DbSet<User> Users { get; set; } = null!;
 }
