@@ -16,7 +16,7 @@ public class AuthenticationService : IAuthenticationService
     {
         var user = new User
         {
-            Id = Guid.NewGuid(),
+            Id = Guid.CreateVersion7(),
             FirstName = firstName,
             LastName = lastName,
             Email = email,
