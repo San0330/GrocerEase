@@ -1,3 +1,4 @@
+using GrocerEase.Application.Common.Interfaces.Authentication;
 using GrocerEase.Application.Common.Interfaces.Persistence;
 using GrocerEase.Domain.Entities;
 
@@ -5,10 +6,12 @@ namespace GrocerEase.Application.Authentication;
 
 public class AuthenticationService : IAuthenticationService
 {
+    private readonly IJwtTokenGenerator _jwtTokenGenerator;
     private readonly IUserRepository _userRepository;
 
-    public AuthenticationService(IUserRepository userRepository)
+    public AuthenticationService(IJwtTokenGenerator jwtTokenGenerator, IUserRepository userRepository)
     {
+        _jwtTokenGenerator = jwtTokenGenerator;
         _userRepository = userRepository;
     }
 
@@ -25,7 +28,9 @@ public class AuthenticationService : IAuthenticationService
 
         _userRepository.Add(user);
 
-        return new AuthenticationResult(user.Id, user.FirstName, user.LastName, user.Email, "token");
+        var token = _jwtTokenGenerator.GenerateToken(user.Id, user.FirstName, user.LastName);
+
+        return new AuthenticationResult(user.Id, user.FirstName, user.LastName, user.Email, token);
     }
 
     public AuthenticationResult Login(string email, string password)
@@ -37,6 +42,8 @@ public class AuthenticationService : IAuthenticationService
             throw new Exception("User not found.");
         }
 
-        return new AuthenticationResult(user.Id, user.FirstName, user.LastName, user.Email, "token");
+        var token = _jwtTokenGenerator.GenerateToken(user.Id, user.FirstName, user.LastName);
+
+        return new AuthenticationResult(user.Id, user.FirstName, user.LastName, user.Email, token);
     }
 }

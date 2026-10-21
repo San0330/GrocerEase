@@ -18,6 +18,10 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ConnectionStrings__DefaultConnection=Host=grocerease.db;Port=5432;Database=GrocerEaseDb;Username=postgres;Password=postgres
+      - JwtSettings__Secret=your-super-secret-key-change-this-in-production
+      - JwtSettings__Issuer=GrocerEase
+      - JwtSettings__Audience=GrocerEase
+      - JwtSettings__ExpiryMinutes=60
 
     # Restart the container automatically if it crashes
     restart: on-failure
