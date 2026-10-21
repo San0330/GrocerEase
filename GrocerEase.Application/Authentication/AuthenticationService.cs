@@ -7,11 +7,16 @@ namespace GrocerEase.Application.Authentication;
 public class AuthenticationService : IAuthenticationService
 {
     private readonly IJwtTokenGenerator _jwtTokenGenerator;
+    private readonly IPasswordHasher _passwordHasher;
     private readonly IUserRepository _userRepository;
 
-    public AuthenticationService(IJwtTokenGenerator jwtTokenGenerator, IUserRepository userRepository)
+    public AuthenticationService(
+        IJwtTokenGenerator jwtTokenGenerator,
+        IPasswordHasher passwordHasher,
+        IUserRepository userRepository)
     {
         _jwtTokenGenerator = jwtTokenGenerator;
+        _passwordHasher = passwordHasher;
         _userRepository = userRepository;
     }
 
@@ -23,7 +28,7 @@ public class AuthenticationService : IAuthenticationService
             FirstName = firstName,
             LastName = lastName,
             Email = email,
-            Password = password, // TODO: hash password before storing
+            Password = _passwordHasher.Hash(password),
         };
 
         _userRepository.Add(user);
@@ -37,9 +42,9 @@ public class AuthenticationService : IAuthenticationService
     {
         var user = _userRepository.GetUserByEmail(email);
 
-        if (user is null)
+        if (user is null || !_passwordHasher.Verify(password, user.Password))
         {
-            throw new Exception("User not found.");
+            throw new Exception("Invalid credentials.");
         }
 
         var token = _jwtTokenGenerator.GenerateToken(user.Id, user.FirstName, user.LastName);
