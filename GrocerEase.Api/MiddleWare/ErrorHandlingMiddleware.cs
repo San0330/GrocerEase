@@ -59,9 +59,8 @@ public class ErrorHandlingMiddleware
             Detail = detail,
         };
 
-        context.Response.ContentType = "application/problem+json";
         context.Response.StatusCode = statusCode;
 
-        await context.Response.WriteAsJsonAsync(problem);
+        await context.Response.WriteAsJsonAsync(problem, options: null, contentType: "application/problem+json");
     }
 }
