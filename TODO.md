@@ -25,7 +25,7 @@ The architecture foundation is genuinely good. Most projects at this stage are a
 |---|---|
 | Async throughout | Non-negotiable for a production web API — moves it from "prototype" to "production-ready" |
 | Unit of Work + tests | Tests are the difference between code you trust and code you hope works |
-| JWT auth middleware | Without it the auth system doesn't actually protect anything |
+| JWT auth middleware | Done — `GET /profile` is `[Authorize]`-only; other routes are still public |
 | Options validation at startup | Small but shows production maturity |
 | Password strength, HTTPS, CORS | Security and deployment hygiene |
 
@@ -46,8 +46,6 @@ These won't appear on a TODO list but separate very good from excellent:
 
 - [ ] **Move `SaveChanges` out of the repository** — `UserRepository.Add()` calls `SaveChangesAsync()` internally, coupling transaction boundaries to individual repository operations. Introduce `IUnitOfWork` and let the service own the commit.
 
-- [ ] **Register JWT bearer middleware** — JWT tokens are generated but never validated. Add `AddAuthentication().AddJwtBearer(...)` in `Program.cs` and `app.UseAuthentication()` + `app.UseAuthorization()` in the pipeline. Currently every endpoint is unprotected.
-
 - [ ] **Add tests** — No unit or integration tests exist. The validators, service logic, `AuthenticationResult.From()`, and middleware are all untested.
 
 ---
@@ -57,8 +55,6 @@ These won't appear on a TODO list but separate very good from excellent:
 - [ ] **Options validation at startup** — If `JwtSettings:Secret` is missing from config the app starts fine but crashes on first login. Add `.ValidateDataAnnotations().ValidateOnStart()` to fail fast.
 
 - [ ] **`IDateTimeProvider` is dead code** — Defined, implemented, and registered but never injected anywhere. Either use it (e.g. in service logic that needs the current time) or remove it.
-
-- [ ] **Document `422` in OpenAPI spec** — Add `[ProducesResponseType<HttpValidationProblemDetails>(StatusCodes.Status422UnprocessableEntity, "application/problem+json")]` to controller actions so validation errors appear in the spec.
 
 - [ ] **Password strength rules** — `RegisterCommandValidator` only enforces `MinimumLength(8)`. Add uppercase, digit, and special character requirements.
 
@@ -94,3 +90,6 @@ These won't appear on a TODO list but separate very good from excellent:
 - [x] OpenAPI wired up (`AddOpenApi`, `MapOpenApi`, `[ProducesResponseType]` on controller)
 - [x] Password hashing with BCrypt
 - [x] JWT token generation
+- [x] JWT bearer middleware (`AddJwtBearer`, `UseAuthentication`, `UseAuthorization`)
+- [x] `GET /profile` — returns the caller's id and email, `[Authorize]` only
+- [x] `422` validation errors documented in the OpenAPI spec

@@ -44,7 +44,7 @@ public class AuthenticationService : IAuthenticationService
 
         _userRepository.Add(user);
 
-        var token = _jwtTokenGenerator.GenerateToken(user.Id, user.FirstName, user.LastName);
+        var token = _jwtTokenGenerator.GenerateToken(user.Id, user.FirstName, user.LastName, user.Email);
 
         return AuthenticationResult.From(user, token);
     }
@@ -60,7 +60,7 @@ public class AuthenticationService : IAuthenticationService
             throw new InvalidCredentialsException();
         }
 
-        var token = _jwtTokenGenerator.GenerateToken(user.Id, user.FirstName, user.LastName);
+        var token = _jwtTokenGenerator.GenerateToken(user.Id, user.FirstName, user.LastName, user.Email);
 
         return AuthenticationResult.From(user, token);
     }
