@@ -17,5 +17,9 @@ public class AppDbContext : DbContext
             .Property(u => u.CreatedAt)
             .HasDefaultValueSql("now()")
             .ValueGeneratedOnAdd();
+
+        modelBuilder.Entity<User>()
+            .HasIndex(u => u.Email)
+            .IsUnique();
     }
 }
