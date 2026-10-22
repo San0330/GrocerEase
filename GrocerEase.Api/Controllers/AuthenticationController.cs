@@ -1,6 +1,7 @@
 using GrocerEase.Application.Authentication;
 using GrocerEase.Application.Authentication.Commands;
 using GrocerEase.Contracts.Authentication;
+using GrocerEase.Contracts.Errors;
 using Microsoft.AspNetCore.Mvc;
 
 namespace GrocerEase.Api.Controllers;
@@ -8,8 +9,8 @@ namespace GrocerEase.Api.Controllers;
 [ApiController]
 [Route("auth")]
 [Produces("application/json")]
-[ProducesResponseType<ProblemDetails>(StatusCodes.Status500InternalServerError, "application/problem+json")]
-[ProducesResponseType<HttpValidationProblemDetails>(StatusCodes.Status422UnprocessableEntity, "application/problem+json")]
+[ProducesResponseType<ErrorResponse>(StatusCodes.Status500InternalServerError, "application/problem+json")]
+[ProducesResponseType<ValidationErrorResponse>(StatusCodes.Status422UnprocessableEntity, "application/problem+json")]
 public class AuthenticationController : ControllerBase
 {
     private readonly IAuthenticationService _authenticationService;
@@ -21,7 +22,8 @@ public class AuthenticationController : ControllerBase
 
     [HttpPost("register")]
     [ProducesResponseType<AuthenticationResponse>(StatusCodes.Status200OK)]
-    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict, "application/problem+json")]
+    [ProducesResponseType<ErrorResponse>(StatusCodes.Status409Conflict, "application/problem+json")]
+    [ProducesResponseType<ErrorResponse>(StatusCodes.Status400BadRequest, "application/problem+json")]
     public async Task<IActionResult> Register(RegisterRequest request, CancellationToken cancellationToken)
     {
         var command = new RegisterCommand(
@@ -42,7 +44,7 @@ public class AuthenticationController : ControllerBase
 
     [HttpPost("login")]
     [ProducesResponseType<AuthenticationResponse>(StatusCodes.Status200OK)]
-    [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized, "application/problem+json")]
+    [ProducesResponseType<ErrorResponse>(StatusCodes.Status401Unauthorized, "application/problem+json")]
     public async Task<IActionResult> Login(LoginRequest request, CancellationToken cancellationToken)
     {
         var command = new LoginCommand(

@@ -6,6 +6,7 @@ public class InvalidCredentialsException : Exception, IAppException
 
     public int StatusCode => 401;
     public string ErrorMessage => DefaultMessage;
+    public string ErrorCode => ErrorCodes.InvalidCredentials;
 
     public InvalidCredentialsException()
         : base(DefaultMessage)

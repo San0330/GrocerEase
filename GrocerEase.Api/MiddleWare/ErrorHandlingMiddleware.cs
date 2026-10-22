@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using FluentValidation;
+using GrocerEase.Contracts.Errors;
 using GrocerEase.Domain.Exceptions;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace GrocerEase.Api.MiddleWare;
@@ -42,47 +42,45 @@ public class ErrorHandlingMiddleware
                     g => g.Key,
                     g => g.Select(e => e.ErrorMessage).ToArray());
 
-            var validationProblem = new HttpValidationProblemDetails(errors)
-            {
-                Status = StatusCodes.Status422UnprocessableEntity,
-                Title = "Validation Failed",
-                Extensions = { ["traceId"] = traceId }
-            };
+            var validationProblem = new ValidationErrorResponse(
+                ErrorCodes.ValidationFailed,
+                StatusCodes.Status422UnprocessableEntity,
+                "Validation Failed",
+                errors,
+                traceId);
 
             context.Response.StatusCode = StatusCodes.Status422UnprocessableEntity;
             await context.Response.WriteAsJsonAsync(validationProblem, options: null, contentType: "application/problem+json");
             return;
         }
 
-        var (statusCode, title, detail) = exception switch
+        var (statusCode, title, detail, code) = exception switch
         {
             IAppException appEx
                 => (appEx.StatusCode,
                     ReasonPhrase(appEx.StatusCode),
-                    appEx.ErrorMessage),
+                    appEx.ErrorMessage,
+                    appEx.ErrorCode),
 
             DbUpdateException { InnerException: { } inner } when inner.Message.Contains("23505")
                 => (StatusCodes.Status409Conflict,
                     "Duplicate Email",
-                    "A user with this email already exists."),
+                    "A user with this email already exists.",
+                    ErrorCodes.DuplicateEmail),
 
             DbUpdateException
                 => (StatusCodes.Status400BadRequest,
                     "Database Error",
-                    "A database constraint was violated."),
+                    "A database constraint was violated.",
+                    ErrorCodes.DatabaseConstraint),
 
             _   => (StatusCodes.Status500InternalServerError,
                     "Internal Server Error",
-                    "An unexpected error occurred.")
+                    "An unexpected error occurred.",
+                    ErrorCodes.Unexpected)
         };
 
-        var problem = new ProblemDetails
-        {
-            Status = statusCode,
-            Title = title,
-            Detail = detail,
-            Extensions = { ["traceId"] = traceId }
-        };
+        var problem = new ErrorResponse(code, statusCode, title, detail, traceId);
 
         context.Response.StatusCode = statusCode;
 

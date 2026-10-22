@@ -4,4 +4,5 @@ public interface IAppException
 {
     int StatusCode { get; }
     string ErrorMessage { get; }
+    string ErrorCode { get; }
 }

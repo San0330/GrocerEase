@@ -1,4 +1,5 @@
 using GrocerEase.Api.MiddleWare;
+using GrocerEase.Api.OpenApi;
 using GrocerEase.Application;
 using GrocerEase.Infrastructure;
 
@@ -9,7 +10,10 @@ builder.Services
     .AddInfrastructure(builder.Configuration);
 
 builder.Services.AddControllers();
-builder.Services.AddOpenApi();
+builder.Services.AddOpenApi(options =>
+{
+    options.AddOperationTransformer<ErrorResponseExamplesTransformer>();
+});
 
 var app = builder.Build();
 

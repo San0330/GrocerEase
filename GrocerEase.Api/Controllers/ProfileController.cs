@@ -1,5 +1,6 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using GrocerEase.Contracts.Errors;
 using GrocerEase.Contracts.Profile;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -12,7 +13,7 @@ namespace GrocerEase.Api.Controllers;
 [Produces("application/json")]
 [ProducesResponseType<ProfileResponse>(StatusCodes.Status200OK)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized, "application/problem+json")]
-[ProducesResponseType<ProblemDetails>(StatusCodes.Status500InternalServerError, "application/problem+json")]
+[ProducesResponseType<ErrorResponse>(StatusCodes.Status500InternalServerError, "application/problem+json")]
 public class ProfileController : ControllerBase
 {
     [HttpGet]
