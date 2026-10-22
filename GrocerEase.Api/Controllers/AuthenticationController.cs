@@ -22,7 +22,7 @@ public class AuthenticationController : ControllerBase
     [HttpPost("register")]
     [ProducesResponseType<AuthenticationResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict, "application/problem+json")]
-    public IActionResult Register(RegisterRequest request)
+    public async Task<IActionResult> Register(RegisterRequest request, CancellationToken cancellationToken)
     {
         var command = new RegisterCommand(
             request.FirstName,
@@ -30,7 +30,7 @@ public class AuthenticationController : ControllerBase
             request.Email,
             request.Password);
 
-        var result = _authenticationService.Register(command);
+        var result = await _authenticationService.RegisterAsync(command, cancellationToken);
 
         return Ok(new AuthenticationResponse(
             result.Id,
@@ -43,13 +43,13 @@ public class AuthenticationController : ControllerBase
     [HttpPost("login")]
     [ProducesResponseType<AuthenticationResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized, "application/problem+json")]
-    public IActionResult Login(LoginRequest request)
+    public async Task<IActionResult> Login(LoginRequest request, CancellationToken cancellationToken)
     {
         var command = new LoginCommand(
             request.Email,
             request.Password);
 
-        var result = _authenticationService.Login(command);
+        var result = await _authenticationService.LoginAsync(command, cancellationToken);
 
         return Ok(new AuthenticationResponse(
             result.Id,

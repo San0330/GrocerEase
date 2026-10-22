@@ -4,6 +4,6 @@ namespace GrocerEase.Application.Authentication;
 
 public interface IAuthenticationService
 {
-    AuthenticationResult Register(RegisterCommand command);
-    AuthenticationResult Login(LoginCommand command);
+    Task<AuthenticationResult> RegisterAsync(RegisterCommand command, CancellationToken cancellationToken = default);
+    Task<AuthenticationResult> LoginAsync(LoginCommand command, CancellationToken cancellationToken = default);
 }

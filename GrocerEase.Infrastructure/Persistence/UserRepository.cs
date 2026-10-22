@@ -1,5 +1,6 @@
 using GrocerEase.Application.Common.Interfaces.Persistence;
 using GrocerEase.Domain.Entities;
+using Microsoft.EntityFrameworkCore;
 
 namespace GrocerEase.Infrastructure.Persistence;
 
@@ -12,14 +13,14 @@ public class UserRepository : IUserRepository
         _context = context;
     }
 
-    public User? GetUserByEmail(string email)
+    public async Task<User?> GetUserByEmailAsync(string email, CancellationToken cancellationToken = default)
     {
-        return _context.Users.SingleOrDefault(u => u.Email == email);
+        return await _context.Users.SingleOrDefaultAsync(u => u.Email == email, cancellationToken);
     }
 
-    public void Add(User user)
+    public async Task AddAsync(User user, CancellationToken cancellationToken = default)
     {
         _context.Users.Add(user);
-        _context.SaveChanges();
+        await _context.SaveChangesAsync(cancellationToken);
     }
 }

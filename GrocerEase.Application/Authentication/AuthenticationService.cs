@@ -29,9 +29,9 @@ public class AuthenticationService : IAuthenticationService
         _loginValidator = loginValidator;
     }
 
-    public AuthenticationResult Register(RegisterCommand command)
+    public async Task<AuthenticationResult> RegisterAsync(RegisterCommand command, CancellationToken cancellationToken = default)
     {
-        _registerValidator.ValidateAndThrow(command);
+        await _registerValidator.ValidateAndThrowAsync(command, cancellationToken);
 
         var user = new User
         {
@@ -42,18 +42,18 @@ public class AuthenticationService : IAuthenticationService
             Password = _passwordHasher.Hash(command.Password),
         };
 
-        _userRepository.Add(user);
+        await _userRepository.AddAsync(user, cancellationToken);
 
         var token = _jwtTokenGenerator.GenerateToken(user.Id, user.FirstName, user.LastName, user.Email);
 
         return AuthenticationResult.From(user, token);
     }
 
-    public AuthenticationResult Login(LoginCommand command)
+    public async Task<AuthenticationResult> LoginAsync(LoginCommand command, CancellationToken cancellationToken = default)
     {
-        _loginValidator.ValidateAndThrow(command);
+        await _loginValidator.ValidateAndThrowAsync(command, cancellationToken);
 
-        var user = _userRepository.GetUserByEmail(command.Email.ToLowerInvariant());
+        var user = await _userRepository.GetUserByEmailAsync(command.Email.ToLowerInvariant(), cancellationToken);
 
         if (user is null || !_passwordHasher.Verify(command.Password, user.Password))
         {

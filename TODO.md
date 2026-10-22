@@ -23,7 +23,7 @@ The architecture foundation is genuinely good. Most projects at this stage are a
 
 | Fix | Why it matters |
 |---|---|
-| Async throughout | Non-negotiable for a production web API — moves it from "prototype" to "production-ready" |
+| Async throughout | Done — register and login await the database instead of blocking a thread |
 | Unit of Work + tests | Tests are the difference between code you trust and code you hope works |
 | JWT auth middleware | Done — `GET /profile` is `[Authorize]`-only; other routes are still public |
 | Options validation at startup | Done — missing or short `JwtSettings` stop the host before it listens |
@@ -42,9 +42,7 @@ These won't appear on a TODO list but separate very good from excellent:
 
 ## 🔴 Critical
 
-- [ ] **Make everything `async`** — `IAuthenticationService`, `IUserRepository`, `AuthenticationService`, `UserRepository` all use synchronous DB calls (`SaveChanges`, `SingleOrDefault`). Blocking thread pool threads kills scalability. Convert to `async Task<T>` throughout.
-
-- [ ] **Move `SaveChanges` out of the repository** — `UserRepository.Add()` calls `SaveChangesAsync()` internally, coupling transaction boundaries to individual repository operations. Introduce `IUnitOfWork` and let the service own the commit.
+- [ ] **Move `SaveChanges` out of the repository** — `UserRepository.AddAsync()` calls `SaveChangesAsync()` internally, coupling transaction boundaries to individual repository operations. Introduce `IUnitOfWork` and let the service own the commit.
 
 - [ ] **Add tests** — No unit or integration tests exist. The validators, service logic, `AuthenticationResult.From()`, and middleware are all untested.
 
@@ -90,5 +88,6 @@ _None right now._
 - [x] `JwtSettings` validated at startup (`ValidateDataAnnotations` + `ValidateOnStart`)
 - [x] Password strength on `RegisterCommand` — uppercase, digit, and special character
 - [x] `IDateTimeProvider` — injected into `JwtTokenGenerator` and used for token expiry; the only `DateTime.UtcNow` call is inside `DateTimeProvider`
+- [x] Async register and login — `SingleOrDefaultAsync` / `SaveChangesAsync`, with `CancellationToken` from the request
 - [x] `GET /profile` — returns the caller's id and email, `[Authorize]` only
 - [x] `422` validation errors documented in the OpenAPI spec
