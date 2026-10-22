@@ -12,6 +12,7 @@ public class AuthenticationService : IAuthenticationService
     private readonly IJwtTokenGenerator _jwtTokenGenerator;
     private readonly IPasswordHasher _passwordHasher;
     private readonly IUserRepository _userRepository;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly IValidator<RegisterCommand> _registerValidator;
     private readonly IValidator<LoginCommand> _loginValidator;
 
@@ -19,12 +20,14 @@ public class AuthenticationService : IAuthenticationService
         IJwtTokenGenerator jwtTokenGenerator,
         IPasswordHasher passwordHasher,
         IUserRepository userRepository,
+        IUnitOfWork unitOfWork,
         IValidator<RegisterCommand> registerValidator,
         IValidator<LoginCommand> loginValidator)
     {
         _jwtTokenGenerator = jwtTokenGenerator;
         _passwordHasher = passwordHasher;
         _userRepository = userRepository;
+        _unitOfWork = unitOfWork;
         _registerValidator = registerValidator;
         _loginValidator = loginValidator;
     }
@@ -50,6 +53,7 @@ public class AuthenticationService : IAuthenticationService
         };
 
         await _userRepository.AddAsync(user, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         var token = _jwtTokenGenerator.GenerateToken(user.Id, user.FirstName, user.LastName, user.Email);
 

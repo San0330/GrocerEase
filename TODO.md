@@ -4,7 +4,7 @@
 
 ## Code Quality Assessment
 
-### Current Rating: 7.5 / 10
+### Current Rating: 8.0 / 10
 
 The architecture foundation is genuinely good. Most projects at this stage are a single `Program.cs` with inline SQL. The patterns here — clean layering, typed exceptions, command objects, global error handling, value converters — are things most teams only add after getting burned by not having them.
 
@@ -12,7 +12,7 @@ The architecture foundation is genuinely good. Most projects at this stage are a
 
 | State | Rating | Description |
 |---|---|---|
-| Right now | **7.5** | Auth is covered by unit and integration tests; the commit boundary is still inside the repository |
+| Right now | **8.0** | Auth is tested, and the service commits through `IUnitOfWork`. HTTPS, CORS, and token refresh remain |
 | TODO list done | **8.5** | Production-ready auth service |
 | + Observability + more features | **9.0** | Proven at scale |
 | + DDD domain model + CI/CD | **9.5** | Senior-level codebase |
@@ -25,7 +25,7 @@ The architecture foundation is genuinely good. Most projects at this stage are a
 |---|---|
 | Async throughout | Done — register and login await the database instead of blocking a thread |
 | Tests | Done — `GrocerEase.UnitTests` checks services, validators, tokens, and error mapping with no database; `GrocerEase.IntegrationTests` runs register, login, and profile against the real host and Postgres |
-| Unit of Work | `SaveChanges` still lives in `UserRepository`, so a service cannot commit several writes as one transaction |
+| Unit of Work | Done — `AddAsync` only tracks the user. `AuthenticationService` calls `IUnitOfWork.SaveChangesAsync`, so one use case can commit several repositories together |
 | JWT auth middleware | Done — `GET /profile` is `[Authorize]`-only; other routes are still public |
 | Options validation at startup | Done — missing or short `JwtSettings` stop the host before it listens |
 | HTTPS, CORS | Deployment hygiene — registration passwords already require uppercase, a digit, and a special character |
@@ -43,12 +43,12 @@ These won't appear on a TODO list but separate very good from excellent:
 
 ## 🔴 Critical
 
-- [ ]
+_None right now._
 
 ---
 
 ## 🟡 Important
- **Move `SaveChanges` out of the repository** — `UserRepository.AddAsync()` calls `SaveChangesAsync()` internally, coupling transaction boundaries to individual repository operations. Introduce `IUnitOfWork` and let the service own the commit.
+
 _None right now._
 
 ---
@@ -91,3 +91,4 @@ _None right now._
 - [x] Unit tests in `GrocerEase.UnitTests` — validators, `AuthenticationService`, `AuthenticationResult.From()`, password hasher, JWT generator, auth and profile controllers, error middleware, and OpenAPI examples. No database and no running host
 - [x] Integration tests in `GrocerEase.IntegrationTests` — `POST /auth/register`, `POST /auth/login`, and `GET /profile` through `WebApplicationFactory` and a Postgres 16 container, including duplicate email (`409`), weak passwords (`422`), invalid credentials, and bearer tokens. `Program` is public so the test host can start the app
 - [x] Duplicate-email pre-check — `RegisterAsync` looks up the lowercased email and throws `DuplicateEmailException` before hashing or inserting. The response is still `409` / `User.DuplicateEmail` / "Duplicate Email". The unique index remains for two requests that pass the check at the same time
+- [x] `IUnitOfWork` — `UserRepository.AddAsync` no longer calls `SaveChangesAsync`. `AuthenticationService` commits after the add. `UnitOfWork` and the repository share the scoped `AppDbContext`

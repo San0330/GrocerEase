@@ -15,14 +15,20 @@ public class AuthenticationServiceTests
     private readonly Mock<IJwtTokenGenerator> _jwt = new();
     private readonly Mock<IPasswordHasher> _passwords = new();
     private readonly Mock<IUserRepository> _users = new();
+    private readonly Mock<IUnitOfWork> _unitOfWork = new();
     private readonly AuthenticationService _sut;
 
     public AuthenticationServiceTests()
     {
+        _unitOfWork
+            .Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
         _sut = new AuthenticationService(
             _jwt.Object,
             _passwords.Object,
             _users.Object,
+            _unitOfWork.Object,
             new RegisterCommandValidator(),
             new LoginCommandValidator());
     }
@@ -58,6 +64,7 @@ public class AuthenticationServiceTests
         _jwt.Verify(
             j => j.GenerateToken(saved.Id, "Ada", "Lovelace", "ada@example.com"),
             Times.Once);
+        _unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -72,6 +79,7 @@ public class AuthenticationServiceTests
 
         _users.Verify(r => r.GetUserByEmailAsync("ada@example.com", cts.Token), Times.Once);
         _users.Verify(r => r.AddAsync(It.IsAny<User>(), cts.Token), Times.Once);
+        _unitOfWork.Verify(u => u.SaveChangesAsync(cts.Token), Times.Once);
     }
 
     [Fact]
@@ -89,6 +97,7 @@ public class AuthenticationServiceTests
         Assert.Equal("A user with this email already exists.", exception.ErrorMessage);
         _passwords.Verify(p => p.Hash(It.IsAny<string>()), Times.Never);
         _users.Verify(r => r.AddAsync(It.IsAny<User>(), It.IsAny<CancellationToken>()), Times.Never);
+        _unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
         _jwt.Verify(
             j => j.GenerateToken(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()),
             Times.Never);
@@ -104,6 +113,7 @@ public class AuthenticationServiceTests
         _passwords.Verify(p => p.Hash(It.IsAny<string>()), Times.Never);
         _users.Verify(r => r.GetUserByEmailAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
         _users.Verify(r => r.AddAsync(It.IsAny<User>(), It.IsAny<CancellationToken>()), Times.Never);
+        _unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
         _jwt.Verify(
             j => j.GenerateToken(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()),
             Times.Never);
@@ -127,6 +137,7 @@ public class AuthenticationServiceTests
         Assert.Equal(user.Email, result.Email);
         Assert.Equal("signed-token", result.Token);
         _users.Verify(r => r.AddAsync(It.IsAny<User>(), It.IsAny<CancellationToken>()), Times.Never);
+        _unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
