@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using GrocerEase.Domain.Exceptions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -57,6 +58,7 @@ public class ErrorHandlingMiddleware
             Status = statusCode,
             Title = title,
             Detail = detail,
+            Extensions = { ["traceId"] = Activity.Current?.Id ?? context.TraceIdentifier }
         };
 
         context.Response.StatusCode = statusCode;
