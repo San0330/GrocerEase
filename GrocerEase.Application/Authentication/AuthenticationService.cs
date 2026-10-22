@@ -1,6 +1,7 @@
 using GrocerEase.Application.Common.Interfaces.Authentication;
 using GrocerEase.Application.Common.Interfaces.Persistence;
 using GrocerEase.Domain.Entities;
+using GrocerEase.Domain.Exceptions;
 
 namespace GrocerEase.Application.Authentication;
 
@@ -44,7 +45,7 @@ public class AuthenticationService : IAuthenticationService
 
         if (user is null || !_passwordHasher.Verify(password, user.Password))
         {
-            throw new Exception("Invalid credentials.");
+            throw new InvalidCredentialsException();
         }
 
         var token = _jwtTokenGenerator.GenerateToken(user.Id, user.FirstName, user.LastName);

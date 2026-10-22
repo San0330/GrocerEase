@@ -1,3 +1,4 @@
+using GrocerEase.Domain.Exceptions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -31,6 +32,11 @@ public class ErrorHandlingMiddleware
     {
         var (statusCode, title, detail) = exception switch
         {
+            InvalidCredentialsException
+                => (StatusCodes.Status401Unauthorized,
+                    "Invalid Credentials",
+                    "Email or password is invalid."),
+
             DbUpdateException { InnerException: { } inner } when inner.Message.Contains("23505")
                 => (StatusCodes.Status409Conflict,
                     "Duplicate Email",
