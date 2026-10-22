@@ -26,7 +26,7 @@ The architecture foundation is genuinely good. Most projects at this stage are a
 | Async throughout | Non-negotiable for a production web API — moves it from "prototype" to "production-ready" |
 | Unit of Work + tests | Tests are the difference between code you trust and code you hope works |
 | JWT auth middleware | Done — `GET /profile` is `[Authorize]`-only; other routes are still public |
-| Options validation at startup | Small but shows production maturity |
+| Options validation at startup | Done — missing or short `JwtSettings` stop the host before it listens |
 | Password strength, HTTPS, CORS | Security and deployment hygiene |
 
 ### The Ceiling Beyond the TODO
@@ -51,8 +51,6 @@ These won't appear on a TODO list but separate very good from excellent:
 ---
 
 ## 🟡 Important
-
-- [ ] **Options validation at startup** — If `JwtSettings:Secret` is missing from config the app starts fine but crashes on first login. Add `.ValidateDataAnnotations().ValidateOnStart()` to fail fast.
 
 - [ ] **`IDateTimeProvider` is dead code** — Defined, implemented, and registered but never injected anywhere. Either use it (e.g. in service logic that needs the current time) or remove it.
 
@@ -91,5 +89,6 @@ These won't appear on a TODO list but separate very good from excellent:
 - [x] Password hashing with BCrypt
 - [x] JWT token generation
 - [x] JWT bearer middleware (`AddJwtBearer`, `UseAuthentication`, `UseAuthorization`)
+- [x] `JwtSettings` validated at startup (`ValidateDataAnnotations` + `ValidateOnStart`)
 - [x] `GET /profile` — returns the caller's id and email, `[Authorize]` only
 - [x] `422` validation errors documented in the OpenAPI spec
