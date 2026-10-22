@@ -30,3 +30,6 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+// Public so WebApplicationFactory can host the app in integration tests.
+public partial class Program;
