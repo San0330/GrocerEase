@@ -9,6 +9,7 @@ namespace GrocerEase.Api.Controllers;
 [Route("auth")]
 [Produces("application/json")]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status500InternalServerError, "application/problem+json")]
+[ProducesResponseType<HttpValidationProblemDetails>(StatusCodes.Status422UnprocessableEntity, "application/problem+json")]
 public class AuthenticationController : ControllerBase
 {
     private readonly IAuthenticationService _authenticationService;
