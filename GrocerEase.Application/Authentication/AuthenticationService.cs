@@ -27,7 +27,7 @@ public class AuthenticationService : IAuthenticationService
             Id = Guid.CreateVersion7(),
             FirstName = firstName,
             LastName = lastName,
-            Email = email,
+            Email = email.ToLowerInvariant(),
             Password = _passwordHasher.Hash(password),
         };
 
@@ -40,7 +40,7 @@ public class AuthenticationService : IAuthenticationService
 
     public AuthenticationResult Login(string email, string password)
     {
-        var user = _userRepository.GetUserByEmail(email);
+        var user = _userRepository.GetUserByEmail(email.ToLowerInvariant());
 
         if (user is null || !_passwordHasher.Verify(password, user.Password))
         {
