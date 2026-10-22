@@ -33,10 +33,10 @@ public class ErrorHandlingMiddleware
     {
         var (statusCode, title, detail) = exception switch
         {
-            InvalidCredentialsException
-                => (StatusCodes.Status401Unauthorized,
-                    "Invalid Credentials",
-                    "Email or password is invalid."),
+            IAppException appEx
+                => (appEx.StatusCode,
+                    ReasonPhrase(appEx.StatusCode),
+                    appEx.ErrorMessage),
 
             DbUpdateException { InnerException: { } inner } when inner.Message.Contains("23505")
                 => (StatusCodes.Status409Conflict,
@@ -65,4 +65,15 @@ public class ErrorHandlingMiddleware
 
         await context.Response.WriteAsJsonAsync(problem, options: null, contentType: "application/problem+json");
     }
+
+    private static string ReasonPhrase(int statusCode) => statusCode switch
+    {
+        400 => "Bad Request",
+        401 => "Unauthorized",
+        403 => "Forbidden",
+        404 => "Not Found",
+        409 => "Conflict",
+        422 => "Unprocessable Entity",
+        _   => "Error"
+    };
 }
