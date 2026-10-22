@@ -27,7 +27,7 @@ The architecture foundation is genuinely good. Most projects at this stage are a
 | Tests | Done — `GrocerEase.UnitTests` checks services, validators, tokens, and error mapping with no database; `GrocerEase.IntegrationTests` runs register, login, and profile against the real host and Postgres |
 | Unit of Work | Done — `AddAsync` only tracks the user. `AuthenticationService` calls `IUnitOfWork.SaveChangesAsync`, so one use case can commit several repositories together |
 | JWT auth middleware | Done — `GET /profile` is `[Authorize]`-only; other routes are still public |
-| Options validation at startup | Done — missing or short `JwtSettings` stop the host before it listens |
+| Options validation at startup | Done — missing or short `JwtSettings`, and a BCrypt cost outside 4–31, stop the host before it listens |
 | HTTPS, CORS | Deployment hygiene — registration passwords already require uppercase, a digit, and a special character |
 
 ### The Ceiling Beyond the TODO
@@ -92,3 +92,4 @@ _None right now._
 - [x] Integration tests in `GrocerEase.IntegrationTests` — `POST /auth/register`, `POST /auth/login`, and `GET /profile` through `WebApplicationFactory` and a Postgres 16 container, including duplicate email (`409`), weak passwords (`422`), invalid credentials, and bearer tokens. `Program` is public so the test host can start the app
 - [x] Duplicate-email pre-check — `RegisterAsync` looks up the lowercased email and throws `DuplicateEmailException` before hashing or inserting. The response is still `409` / `User.DuplicateEmail` / "Duplicate Email". The unique index remains for two requests that pass the check at the same time
 - [x] `IUnitOfWork` — `UserRepository.AddAsync` no longer calls `SaveChangesAsync`. `AuthenticationService` commits after the add. `UnitOfWork` and the repository share the scoped `AppDbContext`
+- [x] BCrypt cost — `PasswordHashing:Cost` defaults to 11 and is validated at startup (4–31). New hashes use that cost. `Verify` reads the cost stored in the hash, so existing passwords still match after the setting is raised

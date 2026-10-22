@@ -29,6 +29,7 @@ public sealed class GrocerEaseApiFactory : WebApplicationFactory<Program>, IAsyn
                 ["JwtSettings:Issuer"] = "GrocerEase",
                 ["JwtSettings:Audience"] = "GrocerEase",
                 ["JwtSettings:ExpiryMinutes"] = "60",
+                ["PasswordHashing:Cost"] = "11",
             });
         });
     }
