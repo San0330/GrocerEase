@@ -1,3 +1,4 @@
+using GrocerEase.Application.Authentication.Commands;
 using GrocerEase.Application.Common.Interfaces.Authentication;
 using GrocerEase.Application.Common.Interfaces.Persistence;
 using GrocerEase.Domain.Entities;
@@ -21,15 +22,15 @@ public class AuthenticationService : IAuthenticationService
         _userRepository = userRepository;
     }
 
-    public AuthenticationResult Register(string firstName, string lastName, string email, string password)
+    public AuthenticationResult Register(RegisterCommand command)
     {
         var user = new User
         {
             Id = Guid.CreateVersion7(),
-            FirstName = firstName,
-            LastName = lastName,
-            Email = email.ToLowerInvariant(),
-            Password = _passwordHasher.Hash(password),
+            FirstName = command.FirstName,
+            LastName = command.LastName,
+            Email = command.Email.ToLowerInvariant(),
+            Password = _passwordHasher.Hash(command.Password),
         };
 
         _userRepository.Add(user);
@@ -39,11 +40,11 @@ public class AuthenticationService : IAuthenticationService
         return new AuthenticationResult(user.Id, user.FirstName, user.LastName, user.Email, token);
     }
 
-    public AuthenticationResult Login(string email, string password)
+    public AuthenticationResult Login(LoginCommand command)
     {
-        var user = _userRepository.GetUserByEmail(email.ToLowerInvariant());
+        var user = _userRepository.GetUserByEmail(command.Email.ToLowerInvariant());
 
-        if (user is null || !_passwordHasher.Verify(password, user.Password))
+        if (user is null || !_passwordHasher.Verify(command.Password, user.Password))
         {
             throw new InvalidCredentialsException();
         }

@@ -1,7 +1,9 @@
+using GrocerEase.Application.Authentication.Commands;
+
 namespace GrocerEase.Application.Authentication;
 
 public interface IAuthenticationService
 {
-    AuthenticationResult Register(string firstName, string lastName, string email, string password);
-    AuthenticationResult Login(string email, string password);
+    AuthenticationResult Register(RegisterCommand command);
+    AuthenticationResult Login(LoginCommand command);
 }
