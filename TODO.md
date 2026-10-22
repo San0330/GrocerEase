@@ -52,7 +52,7 @@ These won't appear on a TODO list but separate very good from excellent:
 
 ## 🟡 Important
 
-- [ ] **`IDateTimeProvider` is dead code** — Defined, implemented, and registered but never injected anywhere. Either use it (e.g. in service logic that needs the current time) or remove it.
+_None right now._
 
 ---
 
@@ -89,5 +89,6 @@ These won't appear on a TODO list but separate very good from excellent:
 - [x] JWT bearer middleware (`AddJwtBearer`, `UseAuthentication`, `UseAuthorization`)
 - [x] `JwtSettings` validated at startup (`ValidateDataAnnotations` + `ValidateOnStart`)
 - [x] Password strength on `RegisterCommand` — uppercase, digit, and special character
+- [x] `IDateTimeProvider` — injected into `JwtTokenGenerator` and used for token expiry; the only `DateTime.UtcNow` call is inside `DateTimeProvider`
 - [x] `GET /profile` — returns the caller's id and email, `[Authorize]` only
 - [x] `422` validation errors documented in the OpenAPI spec
