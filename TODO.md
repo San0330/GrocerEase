@@ -27,7 +27,7 @@ The architecture foundation is genuinely good. Most projects at this stage are a
 | Unit of Work + tests | Tests are the difference between code you trust and code you hope works |
 | JWT auth middleware | Done — `GET /profile` is `[Authorize]`-only; other routes are still public |
 | Options validation at startup | Done — missing or short `JwtSettings` stop the host before it listens |
-| Password strength, HTTPS, CORS | Security and deployment hygiene |
+| HTTPS, CORS | Deployment hygiene — registration passwords already require uppercase, a digit, and a special character |
 
 ### The Ceiling Beyond the TODO
 
@@ -53,8 +53,6 @@ These won't appear on a TODO list but separate very good from excellent:
 ## 🟡 Important
 
 - [ ] **`IDateTimeProvider` is dead code** — Defined, implemented, and registered but never injected anywhere. Either use it (e.g. in service logic that needs the current time) or remove it.
-
-- [ ] **Password strength rules** — `RegisterCommandValidator` only enforces `MinimumLength(8)`. Add uppercase, digit, and special character requirements.
 
 ---
 
@@ -90,5 +88,6 @@ These won't appear on a TODO list but separate very good from excellent:
 - [x] JWT token generation
 - [x] JWT bearer middleware (`AddJwtBearer`, `UseAuthentication`, `UseAuthorization`)
 - [x] `JwtSettings` validated at startup (`ValidateDataAnnotations` + `ValidateOnStart`)
+- [x] Password strength on `RegisterCommand` — uppercase, digit, and special character
 - [x] `GET /profile` — returns the caller's id and email, `[Authorize]` only
 - [x] `422` validation errors documented in the OpenAPI spec
