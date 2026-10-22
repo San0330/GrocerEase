@@ -1,3 +1,4 @@
+using GrocerEase.Api.MiddleWare;
 using GrocerEase.Application;
 using GrocerEase.Infrastructure;
 
@@ -10,6 +11,8 @@ builder.Services
 builder.Services.AddControllers();
 
 var app = builder.Build();
+
+app.UseMiddleware<ErrorHandlingMiddleware>();
 
 app.MapControllers();
 
