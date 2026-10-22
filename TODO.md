@@ -1,0 +1,58 @@
+# GrocerEase — TODO
+
+---
+
+## 🔴 Critical
+
+- [ ] **Make everything `async`** — `IAuthenticationService`, `IUserRepository`, `AuthenticationService`, `UserRepository` all use synchronous DB calls (`SaveChanges`, `SingleOrDefault`). Blocking thread pool threads kills scalability. Convert to `async Task<T>` throughout.
+
+- [ ] **Move `SaveChanges` out of the repository** — `UserRepository.Add()` calls `SaveChangesAsync()` internally, coupling transaction boundaries to individual repository operations. Introduce `IUnitOfWork` and let the service own the commit.
+
+- [ ] **Register JWT bearer middleware** — JWT tokens are generated but never validated. Add `AddAuthentication().AddJwtBearer(...)` in `Program.cs` and `app.UseAuthentication()` + `app.UseAuthorization()` in the pipeline. Currently every endpoint is unprotected.
+
+- [ ] **Add tests** — No unit or integration tests exist. The validators, service logic, `AuthenticationResult.From()`, and middleware are all untested.
+
+---
+
+## 🟡 Important
+
+- [ ] **Options validation at startup** — If `JwtSettings:Secret` is missing from config the app starts fine but crashes on first login. Add `.ValidateDataAnnotations().ValidateOnStart()` to fail fast.
+
+- [ ] **`IDateTimeProvider` is dead code** — Defined, implemented, and registered but never injected anywhere. Either use it (e.g. in service logic that needs the current time) or remove it.
+
+- [ ] **Document `422` in OpenAPI spec** — Add `[ProducesResponseType<HttpValidationProblemDetails>(StatusCodes.Status422UnprocessableEntity, "application/problem+json")]` to controller actions so validation errors appear in the spec.
+
+- [ ] **Password strength rules** — `RegisterCommandValidator` only enforces `MinimumLength(8)`. Add uppercase, digit, and special character requirements.
+
+---
+
+## 🟢 Minor
+
+- [ ] **`app.UseHttpsRedirection()`** — Missing from `Program.cs`. Fine for local dev, required for production.
+
+- [ ] **CORS policy** — No policy configured. Required as soon as a frontend is added.
+
+- [ ] **Token refresh** — No refresh token mechanism. Expired JWTs require re-login with no silent renewal path.
+
+- [ ] **Pre-check for duplicate email** — Currently relies purely on the DB unique constraint + exception catching. An application-level check before insert gives a faster, friendlier error.
+
+---
+
+## Done ✅
+
+- [x] Clean Architecture layering (Domain → Application → Infrastructure, Api)
+- [x] Separate Contracts layer for HTTP shapes
+- [x] DI extension methods per layer
+- [x] Repository pattern with interface in Application
+- [x] Unique index on `Users.Email` with migration
+- [x] Case-insensitive email via EF Core value converter + `ToLowerInvariant()`
+- [x] `IAppException` interface — middleware handles any typed domain exception automatically
+- [x] `InvalidCredentialsException` → 401 Unauthorized
+- [x] Global `ErrorHandlingMiddleware` with `ProblemDetails` + `traceId`
+- [x] `application/problem+json` content type on all error responses
+- [x] FluentValidation on `RegisterCommand` and `LoginCommand` → 422 with field-level errors
+- [x] Command parameter objects (`RegisterCommand`, `LoginCommand`)
+- [x] `AuthenticationResult.From()` static factory to avoid long positional constructors
+- [x] OpenAPI wired up (`AddOpenApi`, `MapOpenApi`, `[ProducesResponseType]` on controller)
+- [x] Password hashing with BCrypt
+- [x] JWT token generation
