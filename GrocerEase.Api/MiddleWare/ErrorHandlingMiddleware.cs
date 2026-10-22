@@ -56,6 +56,12 @@ public class ErrorHandlingMiddleware
 
         var (statusCode, title, detail, code) = exception switch
         {
+            DuplicateEmailException duplicate
+                => (duplicate.StatusCode,
+                    "Duplicate Email",
+                    duplicate.ErrorMessage,
+                    duplicate.ErrorCode),
+
             IAppException appEx
                 => (appEx.StatusCode,
                     ReasonPhrase(appEx.StatusCode),

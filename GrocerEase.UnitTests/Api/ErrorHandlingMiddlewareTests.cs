@@ -94,6 +94,18 @@ public class ErrorHandlingMiddlewareTests
     }
 
     [Fact]
+    public async Task InvokeAsync_DuplicateEmailException_ReturnsDuplicateEmail()
+    {
+        var result = await InvokeAsync(_ => throw new DuplicateEmailException());
+
+        Assert.Equal(StatusCodes.Status409Conflict, result.Status);
+        var body = result.Body!.RootElement;
+        Assert.Equal(ErrorCodes.DuplicateEmail, body.GetProperty("code").GetString());
+        Assert.Equal("Duplicate Email", body.GetProperty("title").GetString());
+        Assert.Equal("A user with this email already exists.", body.GetProperty("detail").GetString());
+    }
+
+    [Fact]
     public async Task InvokeAsync_UniqueViolation_ReturnsDuplicateEmail()
     {
         var exception = new DbUpdateException("update failed", new Exception("duplicate key value violates unique constraint 23505"));

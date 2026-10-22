@@ -33,12 +33,19 @@ public class AuthenticationService : IAuthenticationService
     {
         await _registerValidator.ValidateAndThrowAsync(command, cancellationToken);
 
+        var email = command.Email.ToLowerInvariant();
+        var existing = await _userRepository.GetUserByEmailAsync(email, cancellationToken);
+        if (existing is not null)
+        {
+            throw new DuplicateEmailException();
+        }
+
         var user = new User
         {
             Id = Guid.CreateVersion7(),
             FirstName = command.FirstName,
             LastName = command.LastName,
-            Email = command.Email.ToLowerInvariant(),
+            Email = email,
             Password = _passwordHasher.Hash(command.Password),
         };
 

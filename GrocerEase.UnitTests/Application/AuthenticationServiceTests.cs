@@ -70,7 +70,28 @@ public class AuthenticationServiceTests
 
         await _sut.RegisterAsync(ValidRegister(), cts.Token);
 
+        _users.Verify(r => r.GetUserByEmailAsync("ada@example.com", cts.Token), Times.Once);
         _users.Verify(r => r.AddAsync(It.IsAny<User>(), cts.Token), Times.Once);
+    }
+
+    [Fact]
+    public async Task RegisterAsync_WhenEmailAlreadyExists_DoesNotCreateAnotherUser()
+    {
+        _users
+            .Setup(r => r.GetUserByEmailAsync("ada@example.com", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ExistingUser());
+
+        var exception = await Assert.ThrowsAsync<DuplicateEmailException>(() =>
+            _sut.RegisterAsync(ValidRegister()));
+
+        Assert.Equal(409, exception.StatusCode);
+        Assert.Equal(ErrorCodes.DuplicateEmail, exception.ErrorCode);
+        Assert.Equal("A user with this email already exists.", exception.ErrorMessage);
+        _passwords.Verify(p => p.Hash(It.IsAny<string>()), Times.Never);
+        _users.Verify(r => r.AddAsync(It.IsAny<User>(), It.IsAny<CancellationToken>()), Times.Never);
+        _jwt.Verify(
+            j => j.GenerateToken(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()),
+            Times.Never);
     }
 
     [Fact]
@@ -81,6 +102,7 @@ public class AuthenticationServiceTests
         await Assert.ThrowsAsync<ValidationException>(() => _sut.RegisterAsync(command));
 
         _passwords.Verify(p => p.Hash(It.IsAny<string>()), Times.Never);
+        _users.Verify(r => r.GetUserByEmailAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
         _users.Verify(r => r.AddAsync(It.IsAny<User>(), It.IsAny<CancellationToken>()), Times.Never);
         _jwt.Verify(
             j => j.GenerateToken(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()),

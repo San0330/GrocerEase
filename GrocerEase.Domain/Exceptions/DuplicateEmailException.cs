@@ -1,0 +1,15 @@
+namespace GrocerEase.Domain.Exceptions;
+
+public class DuplicateEmailException : Exception, IAppException
+{
+    private const string DefaultMessage = "A user with this email already exists.";
+
+    public int StatusCode => 409;
+    public string ErrorMessage => DefaultMessage;
+    public string ErrorCode => ErrorCodes.DuplicateEmail;
+
+    public DuplicateEmailException()
+        : base(DefaultMessage)
+    {
+    }
+}
