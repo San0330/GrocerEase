@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using FluentValidation;
 using GrocerEase.Domain.Exceptions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -31,6 +32,28 @@ public class ErrorHandlingMiddleware
 
     private static async Task HandleExceptionAsync(HttpContext context, Exception exception)
     {
+        var traceId = Activity.Current?.Id ?? context.TraceIdentifier;
+
+        if (exception is ValidationException validationEx)
+        {
+            var errors = validationEx.Errors
+                .GroupBy(e => e.PropertyName)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.Select(e => e.ErrorMessage).ToArray());
+
+            var validationProblem = new HttpValidationProblemDetails(errors)
+            {
+                Status = StatusCodes.Status422UnprocessableEntity,
+                Title = "Validation Failed",
+                Extensions = { ["traceId"] = traceId }
+            };
+
+            context.Response.StatusCode = StatusCodes.Status422UnprocessableEntity;
+            await context.Response.WriteAsJsonAsync(validationProblem, options: null, contentType: "application/problem+json");
+            return;
+        }
+
         var (statusCode, title, detail) = exception switch
         {
             IAppException appEx
@@ -58,7 +81,7 @@ public class ErrorHandlingMiddleware
             Status = statusCode,
             Title = title,
             Detail = detail,
-            Extensions = { ["traceId"] = Activity.Current?.Id ?? context.TraceIdentifier }
+            Extensions = { ["traceId"] = traceId }
         };
 
         context.Response.StatusCode = statusCode;
