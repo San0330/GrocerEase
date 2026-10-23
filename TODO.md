@@ -12,7 +12,7 @@ The architecture foundation is genuinely good. Most projects at this stage are a
 
 | State | Rating | Description |
 |---|---|---|
-| Right now | **8.0** | Auth is tested, and the service commits through `IUnitOfWork`. HTTPS, CORS, and token refresh remain |
+| Right now | **8.0** | Auth is tested, and the service commits through `IUnitOfWork`. CORS and token refresh remain |
 | TODO list done | **8.5** | Production-ready auth service |
 | + Observability + more features | **9.0** | Proven at scale |
 | + DDD domain model + CI/CD | **9.5** | Senior-level codebase |
@@ -28,7 +28,7 @@ The architecture foundation is genuinely good. Most projects at this stage are a
 | Unit of Work | Done — `AddAsync` only tracks the user. `AuthenticationService` calls `IUnitOfWork.SaveChangesAsync`, so one use case can commit several repositories together |
 | JWT auth middleware | Done — `GET /profile` is `[Authorize]`-only; other routes are still public |
 | Options validation at startup | Done — missing or short `JwtSettings`, and a BCrypt cost outside 4–31, stop the host before it listens |
-| HTTPS, CORS | Deployment hygiene — registration passwords already require uppercase, a digit, and a special character |
+| CORS | Deployment hygiene — HTTP is redirected to HTTPS when the host knows an HTTPS port. A browser frontend still needs a CORS policy |
 
 ### The Ceiling Beyond the TODO
 
@@ -54,8 +54,6 @@ _None right now._
 ---
 
 ## 🟢 Minor
-
-- [ ] **`app.UseHttpsRedirection()`** — Missing from `Program.cs`. Fine for local dev, required for production.
 
 - [ ] **CORS policy** — No policy configured. Required as soon as a frontend is added.
 
@@ -93,3 +91,4 @@ _None right now._
 - [x] Duplicate-email pre-check — `RegisterAsync` looks up the lowercased email and throws `DuplicateEmailException` before hashing or inserting. The response is still `409` / `User.DuplicateEmail` / "Duplicate Email". The unique index remains for two requests that pass the check at the same time
 - [x] `IUnitOfWork` — `UserRepository.AddAsync` no longer calls `SaveChangesAsync`. `AuthenticationService` commits after the add. `UnitOfWork` and the repository share the scoped `AppDbContext`
 - [x] BCrypt cost — `PasswordHashing:Cost` defaults to 11 and is validated at startup (4–31). New hashes use that cost. `Verify` reads the cost stored in the hash, so existing passwords still match after the setting is raised
+- [x] `app.UseHttpsRedirection()` — HTTP requests redirect to the HTTPS port with `307` when the host is listening on HTTPS (`dotnet run --launch-profile https`). The `http` launch profile and the integration-test host have no HTTPS port, so those requests stay on HTTP
