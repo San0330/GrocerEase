@@ -45,6 +45,7 @@ public class AuthenticationController : ControllerBase
     [HttpPost("login")]
     [ProducesResponseType<AuthenticationResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType<ErrorResponse>(StatusCodes.Status401Unauthorized, "application/problem+json")]
+    [ProducesResponseType<ValidationErrorResponse>(StatusCodes.Status400BadRequest, "application/problem+json")]
     public async Task<IActionResult> Login(LoginRequest request, CancellationToken cancellationToken)
     {
         var command = new LoginCommand(

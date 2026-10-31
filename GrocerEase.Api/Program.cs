@@ -1,3 +1,4 @@
+using GrocerEase.Api.Errors;
 using GrocerEase.Api.MiddleWare;
 using GrocerEase.Api.OpenApi;
 using GrocerEase.Application;
@@ -9,7 +10,10 @@ builder.Services
     .AddApplication()
     .AddInfrastructure(builder.Configuration);
 
-builder.Services.AddControllers();
+builder.Services
+    .AddControllers()
+    .ConfigureApiBehaviorOptions(options =>
+        options.InvalidModelStateResponseFactory = MalformedRequestResponse.Create);
 builder.Services.AddOpenApi(options =>
 {
     options.AddOperationTransformer<ErrorResponseExamplesTransformer>();

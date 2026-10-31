@@ -7,4 +7,5 @@ public static class ErrorCodes
     public const string DatabaseConstraint = "Database.ConstraintViolation";
     public const string Unexpected = "Server.Unexpected";
     public const string ValidationFailed = "Validation.Failed";
+    public const string MalformedRequest = "Request.Malformed";
 }

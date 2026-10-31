@@ -13,25 +13,51 @@ public class ErrorResponseExamplesTransformerTests
     private readonly ErrorResponseExamplesTransformer _transformer = new();
 
     [Fact]
-    public async Task TransformAsync_Register_SetsConflictBadRequestValidationAndServerExamples()
+    public async Task TransformAsync_Register_SetsConflictValidationAndServerExamples()
     {
-        var operation = OperationWith("400", "409", "422", "500");
+        var operation = OperationWith("409", "422", "500");
 
         await _transformer.TransformAsync(operation, ContextFor("auth/register"), CancellationToken.None);
 
         AssertProblem(operation, "409", ErrorCodes.DuplicateEmail, 409, "Duplicate Email", "A user with this email already exists.");
-        AssertProblem(operation, "400", ErrorCodes.DatabaseConstraint, 400, "Database Error", "A database constraint was violated.");
         AssertProblem(operation, "500", ErrorCodes.Unexpected, 500, "Internal Server Error", "An unexpected error occurred.");
         AssertValidation(operation);
     }
 
     [Fact]
-    public async Task TransformAsync_Login_SetsUnauthorizedValidationAndServerExamples()
+    public async Task TransformAsync_Register_PublishesBothShapesForBadRequest()
     {
-        var operation = OperationWith("401", "422", "500");
+        var operation = OperationWith("400");
+
+        await _transformer.TransformAsync(operation, ContextFor("auth/register"), CancellationToken.None);
+
+        var media = Media(operation, "400");
+        var schema = Assert.IsType<OpenApiSchema>(media.Schema);
+        Assert.Equal(2, schema.OneOf!.Count);
+        Assert.Null(media.Example);
+
+        var malformed = Assert.IsType<JsonObject>(media.Examples!["malformedRequest"].Value);
+        Assert.Equal(ErrorCodes.MalformedRequest, malformed["code"]!.GetValue<string>());
+        Assert.Equal(400, malformed["status"]!.GetValue<int>());
+        Assert.IsType<JsonObject>(malformed["errors"]);
+
+        var database = Assert.IsType<JsonObject>(media.Examples["databaseConstraint"].Value);
+        Assert.Equal(ErrorCodes.DatabaseConstraint, database["code"]!.GetValue<string>());
+        Assert.Equal("A database constraint was violated.", database["detail"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public async Task TransformAsync_Login_SetsMalformedUnauthorizedValidationAndServerExamples()
+    {
+        var operation = OperationWith("400", "401", "422", "500");
 
         await _transformer.TransformAsync(operation, ContextFor("auth/login"), CancellationToken.None);
 
+        var malformed = Assert.IsType<JsonObject>(Media(operation, "400").Example);
+        Assert.Equal(ErrorCodes.MalformedRequest, malformed["code"]!.GetValue<string>());
+        Assert.Equal(400, malformed["status"]!.GetValue<int>());
+        Assert.Equal("Malformed Request", malformed["title"]!.GetValue<string>());
+        Assert.IsType<JsonObject>(malformed["errors"]);
         AssertProblem(operation, "401", ErrorCodes.InvalidCredentials, 401, "Unauthorized", "Email or password is invalid.");
         AssertProblem(operation, "500", ErrorCodes.Unexpected, 500, "Internal Server Error", "An unexpected error occurred.");
         AssertValidation(operation);

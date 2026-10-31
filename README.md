@@ -24,6 +24,23 @@ Only the backend's authentication slice exists so far. There are no products, ca
 | `POST /auth/login` | public | Verify credentials and return a JWT. Wrong credentials return `401` |
 | `GET /profile` | bearer token | Return the caller's id and email |
 
+## Error responses
+
+Errors are returned as `application/problem+json`. Clients should branch on `code`, not `title`.
+
+| Status | `code` | When | Body |
+|---|---|---|---|
+| `400` | `Request.Malformed` | The body cannot be read or bound: broken JSON, `null`, an empty body, a wrong type, or a missing property. Also Kestrel rejecting the request while reading the body (`400`, `408`, `413`) | `errors` keyed by field name or JSON path (`$.email`), except Kestrel's, which has `detail` |
+| `400` | `Database.ConstraintViolation` | A database constraint other than the unique email failed (register) | `detail` |
+| `401` | `User.InvalidCredentials` | Wrong email or password | `detail` |
+| `409` | `User.DuplicateEmail` | The email is already registered | `detail` |
+| `422` | `Validation.Failed` | The body was read but a value broke a rule, such as an empty string or a weak password | `errors` keyed by property name |
+| `500` | `Server.Unexpected` | Anything else | `detail` |
+
+A missing property is `400`, while a present but empty one is `422`.
+
+**Known exception: `415`.** A request whose `Content-Type` is not JSON gets `415 Unsupported Media Type` in ASP.NET Core's default shape (`type`, `title`, `status`, `traceId`) with `Content-Type: application/json`. It has no `code` field. This is deliberate for now: changing it means replacing MVC's problem-details factory, which also changes every other framework-generated `4xx`. It is tracked in [`TODO.md`](TODO.md).
+
 The OpenAPI document is served at `/openapi/v1.json` when the app runs in the Development environment.
 
 What is done and what is still open is tracked in [`TODO.md`](TODO.md).

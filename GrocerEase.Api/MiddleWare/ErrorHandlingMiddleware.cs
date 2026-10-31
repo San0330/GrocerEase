@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using FluentValidation;
 using GrocerEase.Contracts.Errors;
 using GrocerEase.Domain.Exceptions;
@@ -42,11 +41,11 @@ public class ErrorHandlingMiddleware
 
     // Validation failures and typed domain errors below 500 are caller mistakes, not server faults.
     private static bool IsExpected(Exception exception) =>
-        exception is ValidationException or IAppException { StatusCode: < 500 };
+        exception is ValidationException or IAppException { StatusCode: < 500 } or BadHttpRequestException { StatusCode: < 500 };
 
     private static async Task HandleExceptionAsync(HttpContext context, Exception exception)
     {
-        var traceId = Activity.Current?.Id ?? context.TraceIdentifier;
+        var traceId = RequestTrace.IdFor(context);
 
         if (exception is ValidationException validationEx)
         {
@@ -75,6 +74,14 @@ public class ErrorHandlingMiddleware
                     appEx.Title ?? ReasonPhrase(appEx.StatusCode),
                     appEx.ErrorMessage,
                     appEx.ErrorCode),
+
+            // Kestrel rejected the request while the body was being read: too large, too slow, or broken framing.
+            // Left alone it would fall through to the 500 below, hiding the 4xx Kestrel chose.
+            BadHttpRequestException badRequest
+                => (badRequest.StatusCode,
+                    ReasonPhrase(badRequest.StatusCode),
+                    "The request could not be read.",
+                    ErrorCodes.MalformedRequest),
 
             DbUpdateException { InnerException: { } inner } when inner.Message.Contains("23505")
                 => (StatusCodes.Status409Conflict,
@@ -107,7 +114,10 @@ public class ErrorHandlingMiddleware
         401 => "Unauthorized",
         403 => "Forbidden",
         404 => "Not Found",
+        408 => "Request Timeout",
         409 => "Conflict",
+        413 => "Content Too Large",
+        415 => "Unsupported Media Type",
         422 => "Unprocessable Entity",
         _   => "Error"
     };

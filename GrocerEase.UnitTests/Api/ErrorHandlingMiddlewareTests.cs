@@ -133,6 +133,28 @@ public class ErrorHandlingMiddlewareTests
         Assert.Equal("A database constraint was violated.", body.GetProperty("detail").GetString());
     }
 
+    [Theory]
+    [InlineData(400, "Bad Request")]
+    [InlineData(408, "Request Timeout")]
+    [InlineData(413, "Content Too Large")]
+    [InlineData(415, "Unsupported Media Type")]
+    public async Task InvokeAsync_BadHttpRequest_KeepsKestrelsStatusInsteadOfReturning500(int statusCode, string title)
+    {
+        var result = await InvokeAsync(
+            _ => throw new BadHttpRequestException("Request body too large. Limit is 30000000 bytes.", statusCode),
+            traceIdentifier: "http-trace");
+
+        Assert.Equal(statusCode, result.Status);
+        Assert.StartsWith("application/problem+json", result.ContentType);
+        var body = result.Body!.RootElement;
+        Assert.Equal(ErrorCodes.MalformedRequest, body.GetProperty("code").GetString());
+        Assert.Equal(statusCode, body.GetProperty("status").GetInt32());
+        Assert.Equal(title, body.GetProperty("title").GetString());
+        Assert.Equal("The request could not be read.", body.GetProperty("detail").GetString());
+        Assert.Equal("http-trace", body.GetProperty("traceId").GetString());
+        Assert.DoesNotContain("30000000", body.GetRawText());
+    }
+
     [Fact]
     public async Task InvokeAsync_UnexpectedException_HidesTheExceptionMessage()
     {

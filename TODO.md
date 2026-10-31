@@ -57,6 +57,8 @@ _None right now._
 
 - [ ] **CORS policy** — No policy configured. Required as soon as a frontend is added.
 
+- [ ] **Unify the `415` response** — A non-JSON content type still returns the framework's `ProblemDetails` (no `code`, `application/json`). Malformed bodies and Kestrel body errors already use `ErrorResponse` / `ValidationErrorResponse` with `Request.Malformed`; `415` needs a custom `ProblemDetailsFactory` or `IClientErrorFactory`, which also changes every other framework-generated `4xx`. Documented as a known exception in the README for now.
+
 - [ ] **Token refresh** — No refresh token mechanism. Expired JWTs require re-login with no silent renewal path.
 
 ---
