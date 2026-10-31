@@ -125,28 +125,40 @@ public class RegisterCommandValidatorTests
     }
 
     [Fact]
-    public void Password_LongerThan100_IsRejected()
+    public void Password_LongerThan72Bytes_IsRejected()
     {
-        var tooLong = new string('a', 97) + "A1!" + "b";
+        var tooLong = new string('a', 69) + "A1!" + "b";
 
-        Assert.Equal(101, tooLong.Length);
+        Assert.Equal(73, tooLong.Length);
 
         var result = _validator.TestValidate(Valid() with { Password = tooLong });
 
         result.ShouldHaveValidationErrorFor(x => x.Password)
-            .WithErrorCode("MaximumLengthValidator");
+            .WithErrorMessage("Password must be at most 72 characters.");
     }
 
     [Fact]
-    public void Password_At100Characters_IsAccepted()
+    public void Password_At72Bytes_IsAccepted()
     {
-        var password = new string('a', 97) + "A1!";
+        var password = new string('a', 69) + "A1!";
 
-        Assert.Equal(100, password.Length);
+        Assert.Equal(72, password.Length);
 
         var result = _validator.TestValidate(Valid() with { Password = password });
 
         result.ShouldNotHaveValidationErrorFor(x => x.Password);
+    }
+
+    [Fact]
+    public void Password_UnderThe72CharactersButOver72Bytes_IsRejected()
+    {
+        // 40 two-byte characters plus "A1!" is 43 characters but 83 bytes.
+        var password = new string('é', 40) + "A1!";
+
+        var result = _validator.TestValidate(Valid() with { Password = password });
+
+        result.ShouldHaveValidationErrorFor(x => x.Password)
+            .WithErrorMessage("Password must be at most 72 characters.");
     }
 
     [Fact]
