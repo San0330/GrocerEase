@@ -7,8 +7,8 @@ Content-Type: application/json
 {
   "firstName": "John",
   "lastName": "Doe",
-  "email": "john@example.com",
-  "password": "Password123"
+  "email": "john2@example.com",
+  "password": "Password123!"
 }
 
 ### Login
@@ -17,8 +17,8 @@ POST {{baseUrl}}/auth/login
 Content-Type: application/json
 
 {
-  "email": "john@example.com",
-  "password": "Password123"
+  "email": "john2@example.com",
+  "password": "Password123!"
 }
 
 ### Profile
