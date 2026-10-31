@@ -97,3 +97,4 @@ _None right now._
 - [x] Expected failures (validation, typed domain errors below 500) log at `Information` without a stack trace; unexpected exceptions still log at `Error`
 - [x] Client disconnects (`RequestAborted`) return `499` quietly instead of a `500` and an error log
 - [x] `IAppException.Title` — an optional title override, so `DuplicateEmailException` no longer needs its own middleware arm
+- [x] `docker-compose.yml` secrets moved to a gitignored `.env` — `JWT_SECRET` and `POSTGRES_PASSWORD` are required (`${VAR:?message}`), `.env.example` is committed as the template, and `.dockerignore` keeps `.env` out of the image build context. Copy `.env.example` to `.env` before `docker compose up`

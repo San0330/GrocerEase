@@ -21,3 +21,7 @@ docker-compose.yml
 
 # Exclude user secrets (never bake secrets into an image)
 **/appsettings.Development.json
+
+# Exclude the compose secrets file — compose reads it on the host, the image must never contain it
+.env
+**/.env
