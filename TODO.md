@@ -98,3 +98,4 @@ _None right now._
 - [x] Client disconnects (`RequestAborted`) return `499` quietly instead of a `500` and an error log
 - [x] `IAppException.Title` — an optional title override, so `DuplicateEmailException` no longer needs its own middleware arm
 - [x] `docker-compose.yml` secrets moved to a gitignored `.env` — `JWT_SECRET` and `POSTGRES_PASSWORD` are required (`${VAR:?message}`), `.env.example` is committed as the template, and `.dockerignore` keeps `.env` out of the image build context. Copy `.env.example` to `.env` before `docker compose up`
+- [x] Test projects added to `GrocerEase.slnx` — `GrocerEase.UnitTests` and `GrocerEase.IntegrationTests` now belong to the solution, so `dotnet test` from the root and IDE test discovery run both. The integration tests need Docker for the Postgres container; skip them with `dotnet test --filter "FullyQualifiedName!~IntegrationTests"`
