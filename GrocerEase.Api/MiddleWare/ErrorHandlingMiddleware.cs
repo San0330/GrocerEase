@@ -23,12 +23,26 @@ public class ErrorHandlingMiddleware
         {
             await _next(context);
         }
+        catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
+        {
+            // The client went away; there is nobody to answer and nothing to alert on.
+            _logger.LogDebug("Request was cancelled by the client.");
+            context.Response.StatusCode = 499;
+        }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Unhandled exception: {Message}", ex.Message);
+            if (IsExpected(ex))
+                _logger.LogInformation("Request rejected: {ExceptionType}: {Message}", ex.GetType().Name, ex.Message);
+            else
+                _logger.LogError(ex, "Unhandled exception: {Message}", ex.Message);
+
             await HandleExceptionAsync(context, ex);
         }
     }
+
+    // Validation failures and typed domain errors below 500 are caller mistakes, not server faults.
+    private static bool IsExpected(Exception exception) =>
+        exception is ValidationException or IAppException { StatusCode: < 500 };
 
     private static async Task HandleExceptionAsync(HttpContext context, Exception exception)
     {
@@ -56,15 +70,9 @@ public class ErrorHandlingMiddleware
 
         var (statusCode, title, detail, code) = exception switch
         {
-            DuplicateEmailException duplicate
-                => (duplicate.StatusCode,
-                    "Duplicate Email",
-                    duplicate.ErrorMessage,
-                    duplicate.ErrorCode),
-
             IAppException appEx
                 => (appEx.StatusCode,
-                    ReasonPhrase(appEx.StatusCode),
+                    appEx.Title ?? ReasonPhrase(appEx.StatusCode),
                     appEx.ErrorMessage,
                     appEx.ErrorCode),
 

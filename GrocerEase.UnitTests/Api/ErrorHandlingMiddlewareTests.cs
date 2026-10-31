@@ -146,12 +146,38 @@ public class ErrorHandlingMiddlewareTests
         Assert.DoesNotContain("secret", body.GetRawText());
     }
 
-    private static async Task<ErrorResult> InvokeAsync(RequestDelegate next, string? traceIdentifier = null)
+    [Fact]
+    public async Task InvokeAsync_WhenTheClientAbortsTheRequest_DoesNotWriteAnErrorBody()
+    {
+        using var aborted = new CancellationTokenSource();
+        aborted.Cancel();
+
+        var result = await InvokeAsync(
+            _ => throw new OperationCanceledException(aborted.Token),
+            requestAborted: aborted.Token);
+
+        Assert.Equal(499, result.Status);
+        Assert.Null(result.Body);
+    }
+
+    [Fact]
+    public async Task InvokeAsync_OperationCanceledWithoutAnAbort_ReturnsInternalServerError()
+    {
+        var result = await InvokeAsync(_ => throw new OperationCanceledException("upstream timeout"));
+
+        Assert.Equal(StatusCodes.Status500InternalServerError, result.Status);
+    }
+
+    private static async Task<ErrorResult> InvokeAsync(
+        RequestDelegate next,
+        string? traceIdentifier = null,
+        CancellationToken requestAborted = default)
     {
         var context = new DefaultHttpContext
         {
             RequestServices = JsonServices,
             TraceIdentifier = traceIdentifier ?? "http-trace",
+            RequestAborted = requestAborted,
         };
         context.Response.Body = new MemoryStream();
 

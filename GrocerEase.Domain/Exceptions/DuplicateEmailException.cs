@@ -7,6 +7,7 @@ public class DuplicateEmailException : Exception, IAppException
     public int StatusCode => 409;
     public string ErrorMessage => DefaultMessage;
     public string ErrorCode => ErrorCodes.DuplicateEmail;
+    public string? Title => "Duplicate Email";
 
     public DuplicateEmailException()
         : base(DefaultMessage)

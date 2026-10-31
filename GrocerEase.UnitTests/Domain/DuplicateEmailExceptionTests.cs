@@ -11,6 +11,7 @@ public class DuplicateEmailExceptionTests
 
         Assert.Equal(409, exception.StatusCode);
         Assert.Equal(ErrorCodes.DuplicateEmail, exception.ErrorCode);
+        Assert.Equal("Duplicate Email", ((IAppException)exception).Title);
         Assert.Equal("A user with this email already exists.", exception.ErrorMessage);
         Assert.Equal(exception.ErrorMessage, exception.Message);
     }
