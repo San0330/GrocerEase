@@ -4,4 +4,6 @@
   <Project Path="GrocerEase.Contracts/GrocerEase.Contracts.csproj" />
   <Project Path="GrocerEase.Domain/GrocerEase.Domain.csproj" />
   <Project Path="GrocerEase.Infrastructure/GrocerEase.Infrastructure.csproj" />
+  <Project Path="GrocerEase.IntegrationTests/GrocerEase.IntegrationTests.csproj" />
+  <Project Path="GrocerEase.UnitTests/GrocerEase.UnitTests.csproj" />
 </Solution>
