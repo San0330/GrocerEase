@@ -37,7 +37,7 @@ Errors are returned as `application/problem+json`. Clients should branch on `cod
 | `422` | `Validation.Failed` | The body was read but a value broke a rule, such as an empty string or a weak password | `errors` keyed by property name |
 | `500` | `Server.Unexpected` | Anything else | `detail` |
 
-A missing property is `400`, while a present but empty one is `422`.
+A missing property is `400` while a present but empty one is `422`. This split comes from how ASP.NET Core model binding treats non-nullable properties as required, not from a rule in the HTTP standards. Many APIs use a single status for both.
 
 **Known exception: `415`.** A request whose `Content-Type` is not JSON gets `415 Unsupported Media Type` in ASP.NET Core's default shape (`type`, `title`, `status`, `traceId`) with `Content-Type: application/json`. It has no `code` field. This is deliberate for now: changing it means replacing MVC's problem-details factory, which also changes every other framework-generated `4xx`. It is tracked in [`TODO.md`](TODO.md).
 
