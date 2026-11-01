@@ -95,7 +95,7 @@ _None right now._
 - [x] BCrypt cost — `PasswordHashing:Cost` defaults to 11 and is validated at startup (4–31). New hashes use that cost. `Verify` reads the cost stored in the hash, so existing passwords still match after the setting is raised
 - [x] `app.UseHttpsRedirection()` — HTTP requests redirect to the HTTPS port with `307` when the host is listening on HTTPS (`dotnet run --launch-profile https`). The `http` launch profile and the integration-test host have no HTTPS port, so those requests stay on HTTP
 - [x] JWT signing secret removed from `appsettings.json` — a deployment that forgets `JwtSettings__Secret` now fails at startup. locally the value comes from `dotnet user-secrets` (`UserSecretsId` on `GrocerEase.Api`; set it with `dotnet user-secrets set "JwtSettings:Secret" "<value>" --project GrocerEase.Api`), and `docker-compose.yml` supplies a development value
-- [x] Password capped at 72 bytes — BCrypt ignores everything after byte 72, so `RegisterCommandValidator` rejects longer passwords with `Password must be at most 72 characters.`
+- [x] Password capped at 72 bytes — BCrypt ignores everything after byte 72, so `RegisterCommandValidator` rejects longer passwords with `Password must be at most 72 bytes in UTF-8; accented letters and emoji use more than one byte each.` (login rejects them too, through the shared `PasswordRules`)
 - [x] Expected failures (validation, typed domain errors below 500) log at `Information` without a stack trace; unexpected exceptions still log at `Error`
 - [x] Client disconnects (`RequestAborted`) return `499` quietly instead of a `500` and an error log
 - [x] `IAppException.Title` — an optional title override, so `DuplicateEmailException` no longer needs its own middleware arm
