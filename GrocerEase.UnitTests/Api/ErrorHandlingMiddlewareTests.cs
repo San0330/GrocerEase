@@ -5,6 +5,7 @@ using FluentValidation.Results;
 using GrocerEase.Api.MiddleWare;
 using GrocerEase.Domain.Exceptions;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -118,6 +119,21 @@ public class ErrorHandlingMiddlewareTests
     }
 
     [Fact]
+    public async Task InvokeAsync_WhenTheResponseHasAlreadyStarted_RethrowsInsteadOfWritingABody()
+    {
+        var context = new DefaultHttpContext { RequestServices = JsonServices };
+        context.Features.Set<IHttpResponseFeature>(new StartedResponseFeature());
+        context.Response.Body = new MemoryStream();
+        var failure = new InvalidOperationException("failed halfway through the body");
+        var middleware = new ErrorHandlingMiddleware(_ => throw failure, NullLogger<ErrorHandlingMiddleware>.Instance);
+
+        var thrown = await Assert.ThrowsAsync<InvalidOperationException>(() => middleware.InvokeAsync(context));
+
+        Assert.Same(failure, thrown);
+        Assert.Equal(0, context.Response.Body.Length);
+    }
+
+    [Fact]
     public async Task InvokeAsync_UntranslatedDatabaseFailure_ReturnsAServerError()
     {
         var exception = new DbUpdateException("update failed", new TimeoutException("connection timed out"));
@@ -207,6 +223,11 @@ public class ErrorHandlingMiddlewareTests
             : await JsonDocument.ParseAsync(context.Response.Body);
 
         return new ErrorResult(context.Response.StatusCode, context.Response.ContentType, body);
+    }
+
+    private sealed class StartedResponseFeature : HttpResponseFeature
+    {
+        public override bool HasStarted => true;
     }
 
     private sealed record ErrorResult(int Status, string? ContentType, JsonDocument? Body);

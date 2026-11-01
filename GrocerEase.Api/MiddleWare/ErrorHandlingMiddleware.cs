@@ -28,6 +28,13 @@ public class ErrorHandlingMiddleware
             _logger.LogDebug("Request was cancelled by the client.");
             context.Response.StatusCode = 499;
         }
+        catch (Exception ex) when (context.Response.HasStarted)
+        {
+            // Status and headers are already on the wire, so an error body cannot be written. Rethrowing makes the
+            // server abort the connection, which tells the client the response is incomplete.
+            _logger.LogError(ex, "Unhandled exception after the response had started: {Message}", ex.Message);
+            throw;
+        }
         catch (Exception ex)
         {
             if (IsExpected(ex))
