@@ -101,3 +101,9 @@ _None right now._
 - [x] `IAppException.Title` — an optional title override, so `DuplicateEmailException` no longer needs its own middleware arm
 - [x] `docker-compose.yml` secrets moved to a gitignored `.env` — `JWT_SECRET` and `POSTGRES_PASSWORD` are required (`${VAR:?message}`), `.env.example` is committed as the template, and `.dockerignore` keeps `.env` out of the image build context. Copy `.env.example` to `.env` before `docker compose up`
 - [x] Test projects added to `GrocerEase.slnx` — `GrocerEase.UnitTests` and `GrocerEase.IntegrationTests` now belong to the solution, so `dotnet test` from the root and IDE test discovery run both. The integration tests need Docker for the Postgres container; skip them with `dotnet test --filter "FullyQualifiedName!~IntegrationTests"`
+
+- [ ] **Forwarded headers for the rate limiter** — `/auth/*` is limited per socket address. Behind a proxy every client shares one budget until `UseForwardedHeaders` is configured with the proxy's address.
+
+- [ ] **Registration still reveals which emails exist** — `409 User.DuplicateEmail`. Login no longer leaks it through timing. Fixing register needs an email-confirmation flow.
+
+- [ ] **Apply migrations as a pipeline step** — `Database:MigrateOnStartup` covers local runs and compose. A production database needs a deliberate step.
