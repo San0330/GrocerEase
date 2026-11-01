@@ -63,6 +63,18 @@ public class ErrorResponseExamplesTransformerTests
         AssertValidation(operation);
     }
 
+    [Theory]
+    [InlineData("auth/register")]
+    [InlineData("auth/login")]
+    public async Task TransformAsync_AuthEndpoints_SetTheRateLimitExample(string path)
+    {
+        var operation = OperationWith("429");
+
+        await _transformer.TransformAsync(operation, ContextFor(path), CancellationToken.None);
+
+        AssertProblem(operation, "429", ErrorCodes.RateLimited, 429, "Too Many Requests", "Too many requests. Try again later.");
+    }
+
     [Fact]
     public async Task TransformAsync_Profile_SetsOnlyTheServerExample()
     {

@@ -35,11 +35,14 @@ Errors are returned as `application/problem+json`. Clients should branch on `cod
 | `401` | `User.InvalidCredentials` | Wrong email or password | `detail` |
 | `409` | `User.DuplicateEmail` | The email is already registered | `detail` |
 | `422` | `Validation.Failed` | The body was read but a value broke a rule, such as an empty string or a weak password | `errors` keyed by property name |
+| `429` | `RateLimit.Exceeded` | `/auth/register` or `/auth/login` was called more than the limit allows from one client address. The `Retry-After` header says how many seconds to wait | `detail` |
 | `500` | `Server.Unexpected` | Anything else | `detail` |
 
 A missing property is `400` while a present but empty one is `422`. This split comes from how ASP.NET Core model binding treats non-nullable properties as required, not from a rule in the HTTP standards. Many APIs use a single status for both.
 
 **Known exception: `415`.** A request whose `Content-Type` is not JSON gets `415 Unsupported Media Type` in ASP.NET Core's default shape (`type`, `title`, `status`, `traceId`) with `Content-Type: application/json`. It has no `code` field. This is deliberate for now: changing it means replacing MVC's problem-details factory, which also changes every other framework-generated `4xx`. It is tracked in [`TODO.md`](TODO.md).
+
+**Rate limit.** `/auth/register` and `/auth/login` share one budget per client address, 10 requests per 60 seconds by default, because each attempt costs a BCrypt hash. Change it with `RateLimiting:Auth:PermitLimit` and `RateLimiting:Auth:WindowSeconds`. The address is the socket's, so behind a reverse proxy every client looks like the proxy until forwarded headers are configured.
 
 The OpenAPI document is served at `/openapi/v1.json` when the app runs in the Development environment.
 

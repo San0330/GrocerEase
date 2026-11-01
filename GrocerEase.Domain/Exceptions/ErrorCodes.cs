@@ -8,4 +8,5 @@ public static class ErrorCodes
     public const string Unexpected = "Server.Unexpected";
     public const string ValidationFailed = "Validation.Failed";
     public const string MalformedRequest = "Request.Malformed";
+    public const string RateLimited = "RateLimit.Exceeded";
 }

@@ -33,6 +33,8 @@ public class GrocerEaseApiFactory : WebApplicationFactory<Program>, IAsyncLifeti
                 ["JwtSettings:Audience"] = "GrocerEase",
                 ["JwtSettings:ExpiryMinutes"] = "60",
                 ["PasswordHashing:Cost"] = "11",
+                // High enough that no other test is throttled; RateLimitTests uses its own host with a low limit.
+                ["RateLimiting:Auth:PermitLimit"] = "100000",
                 ["Database:MigrateOnStartup"] = MigrateOnStartup.ToString(),
             });
         });

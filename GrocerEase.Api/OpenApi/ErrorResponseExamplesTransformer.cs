@@ -34,6 +34,11 @@ public sealed class ErrorResponseExamplesTransformer : IOpenApiOperationTransfor
             SetValidation(operation);
         }
 
+        if (path is "auth/register" or "auth/login")
+        {
+            Set(operation, "429", ErrorCodes.RateLimited, 429, "Too Many Requests", "Too many requests. Try again later.");
+        }
+
         if (path is "auth/register" or "auth/login" or "profile")
         {
             Set(operation, "500", ErrorCodes.Unexpected, 500, "Internal Server Error", "An unexpected error occurred.");

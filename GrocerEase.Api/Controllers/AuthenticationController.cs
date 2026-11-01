@@ -1,14 +1,18 @@
+using GrocerEase.Api.RateLimiting;
 using GrocerEase.Application.Authentication;
 using GrocerEase.Application.Authentication.Commands;
 using GrocerEase.Contracts.Authentication;
 using GrocerEase.Contracts.Errors;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace GrocerEase.Api.Controllers;
 
 [ApiController]
 [Route("auth")]
+[EnableRateLimiting(AuthRateLimiting.PolicyName)]
 [Produces("application/json")]
+[ProducesResponseType<ErrorResponse>(StatusCodes.Status429TooManyRequests, "application/problem+json")]
 [ProducesResponseType<ErrorResponse>(StatusCodes.Status500InternalServerError, "application/problem+json")]
 [ProducesResponseType<ValidationErrorResponse>(StatusCodes.Status422UnprocessableEntity, "application/problem+json")]
 public class AuthenticationController : ControllerBase

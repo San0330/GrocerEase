@@ -1,6 +1,7 @@
 using GrocerEase.Api.Errors;
 using GrocerEase.Api.MiddleWare;
 using GrocerEase.Api.OpenApi;
+using GrocerEase.Api.RateLimiting;
 using GrocerEase.Application;
 using GrocerEase.Infrastructure;
 using GrocerEase.Infrastructure.Persistence;
@@ -10,6 +11,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services
     .AddApplication()
     .AddInfrastructure(builder.Configuration);
+
+builder.Services.AddAuthRateLimiting(builder.Configuration);
 
 builder.Services
     .AddControllers()
@@ -36,6 +39,8 @@ if (app.Environment.IsDevelopment())
 app.UseMiddleware<ErrorHandlingMiddleware>();
 
 app.UseHttpsRedirection();
+
+app.UseRateLimiter();
 
 app.UseAuthentication();
 app.UseAuthorization();
