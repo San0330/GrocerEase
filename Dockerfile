@@ -7,6 +7,9 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 # Set the working directory inside the container
 WORKDIR /src
 
+# Package versions are central, so restore needs this file next to the project files.
+COPY Directory.Packages.props .
+
 # Copy all project files first (for layer caching — avoids re-restoring on code-only changes)
 COPY GrocerEase.Api/GrocerEase.Api.csproj             GrocerEase.Api/
 COPY GrocerEase.Application/GrocerEase.Application.csproj   GrocerEase.Application/
