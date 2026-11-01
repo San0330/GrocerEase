@@ -1,6 +1,3 @@
-using GrocerEase.Api.MiddleWare;
-using GrocerEase.Contracts.Errors;
-using GrocerEase.Domain.Exceptions;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 
 namespace GrocerEase.Api.Errors;
@@ -12,7 +9,7 @@ namespace GrocerEase.Api.Errors;
 /// </summary>
 public static class UnauthorizedResponse
 {
-    private const string Detail = "Authentication is required, or the bearer token is missing, expired, or not valid.";
+    public const string Detail = "Authentication is required, or the bearer token is missing, expired, or not valid.";
 
     public static async Task WriteAsync(JwtBearerChallengeContext context)
     {
@@ -27,14 +24,13 @@ public static class UnauthorizedResponse
             ? JwtBearerDefaults.AuthenticationScheme
             : $"{JwtBearerDefaults.AuthenticationScheme} error=\"invalid_token\"";
 
-        var body = new ErrorResponse(
-            ApiErrorCodes.Unauthorized,
-            StatusCodes.Status401Unauthorized,
-            "Unauthorized",
-            Detail,
-            RequestTrace.IdFor(context.HttpContext));
-
-        response.StatusCode = StatusCodes.Status401Unauthorized;
-        await response.WriteAsJsonAsync(body, options: null, contentType: "application/problem+json");
+        await ApiProblem.WriteAsync(
+            context.HttpContext,
+            ApiProblem.Error(
+                context.HttpContext,
+                ApiErrorCodes.Unauthorized,
+                StatusCodes.Status401Unauthorized,
+                "Unauthorized",
+                Detail));
     }
 }

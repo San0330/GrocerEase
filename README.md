@@ -34,14 +34,17 @@ Errors are returned as `application/problem+json`. Clients should branch on `cod
 | `400` | `Database.ConstraintViolation` | A database constraint other than the unique email failed (register) | `detail` |
 | `401` | `Auth.Unauthorized` | A protected endpoint such as `/profile` was called without a bearer token, or with one that is expired, tampered with, or issued for another audience. `WWW-Authenticate` is `Bearer`, or `Bearer error="invalid_token"` when a token was sent | `detail` |
 | `401` | `User.InvalidCredentials` | Wrong email or password | `detail` |
+| `404` | `Request.NotFound` | No such route | `detail` |
+| `405` | `Request.MethodNotAllowed` | The route exists but not for this method. `Allow` lists the methods that work | `detail` |
 | `409` | `User.DuplicateEmail` | The email is already registered | `detail` |
+| `415` | `Request.UnsupportedMediaType` | The body is not sent as `application/json` | `detail` |
 | `422` | `Validation.Failed` | The body was read but a value broke a rule, such as an empty string or a weak password | `errors` keyed by the JSON field name (`email`, `firstName`), as the client sent it |
 | `429` | `RateLimit.Exceeded` | `/auth/register` or `/auth/login` was called more than the limit allows from one client address. The `Retry-After` header says how many seconds to wait | `detail` |
 | `500` | `Server.Unexpected` | Anything else | `detail` |
 
 A missing property is `400` while a present but empty one is `422`. This split comes from how ASP.NET Core model binding treats non-nullable properties as required, not from a rule in the HTTP standards. Many APIs use a single status for both.
 
-**Known exception: `415`.** A request whose `Content-Type` is not JSON gets `415 Unsupported Media Type` in ASP.NET Core's default shape (`type`, `title`, `status`, `traceId`) with `Content-Type: application/json`. It has no `code` field. This is deliberate for now: changing it means replacing MVC's problem-details factory, which also changes every other framework-generated `4xx`. It is tracked in [`TODO.md`](TODO.md).
+**Framework responses.** A route that does not exist, a wrong method, a body that is not JSON, and a bare `401` or `403` all answer in the same shape, because a status-code handler gives them a body. The `code` is `Request.NotFound`, `Request.MethodNotAllowed`, `Request.UnsupportedMediaType`, `Auth.Forbidden`, or `Request.Rejected` for any other `4xx`. Every error is `application/problem+json` (RFC 9457) with `code` and `traceId` as extension members.
 
 **Rate limit.** `/auth/register` and `/auth/login` share one budget per client address, 10 requests per 60 seconds by default, because each attempt costs a BCrypt hash. Change it with `RateLimiting:Auth:PermitLimit` and `RateLimiting:Auth:WindowSeconds`. The address is the socket's, so behind a reverse proxy every client looks like the proxy until forwarded headers are configured.
 

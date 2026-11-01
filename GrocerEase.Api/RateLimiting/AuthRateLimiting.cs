@@ -1,8 +1,5 @@
 using System.Threading.RateLimiting;
 using GrocerEase.Api.Errors;
-using GrocerEase.Api.MiddleWare;
-using GrocerEase.Contracts.Errors;
-using GrocerEase.Domain.Exceptions;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
 
@@ -57,14 +54,14 @@ public static class AuthRateLimiting
             response.Headers.RetryAfter = ((int)Math.Ceiling(retryAfter.TotalSeconds)).ToString();
         }
 
-        var body = new ErrorResponse(
-            ApiErrorCodes.RateLimited,
-            StatusCodes.Status429TooManyRequests,
-            "Too Many Requests",
-            "Too many requests. Try again later.",
-            RequestTrace.IdFor(context.HttpContext));
-
-        response.StatusCode = StatusCodes.Status429TooManyRequests;
-        await response.WriteAsJsonAsync(body, options: null, contentType: "application/problem+json", cancellationToken);
+        await ApiProblem.WriteAsync(
+            context.HttpContext,
+            ApiProblem.Error(
+                context.HttpContext,
+                ApiErrorCodes.RateLimited,
+                StatusCodes.Status429TooManyRequests,
+                "Too Many Requests",
+                "Too many requests. Try again later."),
+            cancellationToken);
     }
 }

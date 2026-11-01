@@ -52,8 +52,6 @@ public class ErrorHandlingMiddleware
 
     private static async Task HandleExceptionAsync(HttpContext context, Exception exception)
     {
-        var traceId = RequestTrace.IdFor(context);
-
         if (exception is ValidationException validationEx)
         {
             var errors = validationEx.Errors
@@ -62,15 +60,14 @@ public class ErrorHandlingMiddleware
                     g => g.Key,
                     g => g.Select(e => e.ErrorMessage).ToArray());
 
-            var validationProblem = new ValidationErrorResponse(
-                ApiErrorCodes.ValidationFailed,
-                StatusCodes.Status422UnprocessableEntity,
-                "Validation Failed",
-                errors,
-                traceId);
-
-            context.Response.StatusCode = StatusCodes.Status422UnprocessableEntity;
-            await context.Response.WriteAsJsonAsync(validationProblem, options: null, contentType: "application/problem+json");
+            await ApiProblem.WriteAsync(
+                context,
+                ApiProblem.Validation(
+                    context,
+                    ApiErrorCodes.ValidationFailed,
+                    StatusCodes.Status422UnprocessableEntity,
+                    "Validation Failed",
+                    errors));
             return;
         }
 
@@ -78,7 +75,7 @@ public class ErrorHandlingMiddleware
         {
             IAppException appEx
                 => (appEx.Kind.ToStatusCode(),
-                    appEx.Title ?? ReasonPhrase(appEx.Kind.ToStatusCode()),
+                    appEx.Title ?? ApiProblem.ReasonPhrase(appEx.Kind.ToStatusCode()),
                     appEx.ErrorMessage,
                     appEx.ErrorCode),
 
@@ -86,34 +83,17 @@ public class ErrorHandlingMiddleware
             // Left alone it would fall through to the 500 below, hiding the 4xx Kestrel chose.
             BadHttpRequestException badRequest
                 => (badRequest.StatusCode,
-                    ReasonPhrase(badRequest.StatusCode),
+                    ApiProblem.ReasonPhrase(badRequest.StatusCode),
                     "The request could not be read.",
                     ApiErrorCodes.MalformedRequest),
 
+            // Anything else, including a database failure that Infrastructure did not translate, is our fault.
             _   => (StatusCodes.Status500InternalServerError,
                     "Internal Server Error",
                     "An unexpected error occurred.",
                     ApiErrorCodes.Unexpected)
         };
 
-        var problem = new ErrorResponse(code, statusCode, title, detail, traceId);
-
-        context.Response.StatusCode = statusCode;
-
-        await context.Response.WriteAsJsonAsync(problem, options: null, contentType: "application/problem+json");
+        await ApiProblem.WriteAsync(context, ApiProblem.Error(context, code, statusCode, title, detail));
     }
-
-    private static string ReasonPhrase(int statusCode) => statusCode switch
-    {
-        400 => "Bad Request",
-        401 => "Unauthorized",
-        403 => "Forbidden",
-        404 => "Not Found",
-        408 => "Request Timeout",
-        409 => "Conflict",
-        413 => "Content Too Large",
-        415 => "Unsupported Media Type",
-        422 => "Unprocessable Entity",
-        _   => "Error"
-    };
 }

@@ -1,6 +1,3 @@
-using GrocerEase.Api.MiddleWare;
-using GrocerEase.Contracts.Errors;
-using GrocerEase.Domain.Exceptions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 
@@ -42,19 +39,19 @@ public static class MalformedRequestResponse
                 errors.Remove(parameter.Name);
         }
 
-        var body = new ValidationErrorResponse(
+        var body = ApiProblem.Validation(
+            context.HttpContext,
             ApiErrorCodes.MalformedRequest,
             StatusCodes.Status400BadRequest,
             "Malformed Request",
-            errors,
-            RequestTrace.IdFor(context.HttpContext));
+            errors);
 
         // JsonResult, not ObjectResult: the controllers' [Produces("application/json")] rewrites an
         // ObjectResult's content type, which would turn this into plain application/json.
         return new JsonResult(body)
         {
             StatusCode = StatusCodes.Status400BadRequest,
-            ContentType = "application/problem+json",
+            ContentType = ApiProblem.ContentType,
         };
     }
 

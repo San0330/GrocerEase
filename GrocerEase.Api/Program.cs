@@ -20,7 +20,13 @@ builder.Services.AddJwtAuthentication();
 builder.Services
     .AddControllers()
     .ConfigureApiBehaviorOptions(options =>
-        options.InvalidModelStateResponseFactory = MalformedRequestResponse.Create);
+    {
+        options.InvalidModelStateResponseFactory = MalformedRequestResponse.Create;
+
+        // Leave a 4xx such as 415 as a bare status so UseStatusCodePages answers it, instead of MVC attaching its own
+        // ProblemDetails with a different shape.
+        options.SuppressMapClientErrors = true;
+    });
 builder.Services.AddOpenApi(options =>
 {
     options.AddOperationTransformer<ErrorResponseExamplesTransformer>();
@@ -40,6 +46,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseMiddleware<ErrorHandlingMiddleware>();
+
+// Gives every 4xx or 5xx that has no body (unknown route, wrong method, wrong content type) the API's error shape.
+app.UseStatusCodePages(StatusCodeProblem.WriteAsync);
 
 app.UseHttpsRedirection();
 
