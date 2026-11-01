@@ -22,6 +22,8 @@ appsettings.Development.json
 .env
 
 # AI tool directories
+# .agents/skills holds third-party skills installed from skills-lock.json; restore them instead of committing them.
+.agents/
 .aider-desk/
 .claude/
 
