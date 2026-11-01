@@ -23,6 +23,8 @@ Only the backend's authentication slice exists so far. There are no products, ca
 | `POST /auth/register` | public | Create a user and return a JWT with `201`. Duplicate email returns `409`, validation failures return `422` |
 | `POST /auth/login` | public | Verify credentials and return a JWT. Wrong credentials return `401` |
 | `GET /profile` | bearer token | Return the caller's id and email |
+| `GET /health/live` | public | `200 Healthy` while the process answers. Runs no checks |
+| `GET /health/ready` | public | `200 Healthy`, or `503 Unhealthy` when the database cannot be reached. Compose uses it as the API's healthcheck |
 
 ## Error responses
 

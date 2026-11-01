@@ -31,6 +31,18 @@ services:
     # Restart the container automatically if it crashes
     restart: on-failure
 
+    # The aspnet image has no curl, so the check opens a socket from bash and reads the status line of /health/ready.
+    healthcheck:
+      test:
+        - CMD
+        - bash
+        - -c
+        - exec 3<>/dev/tcp/127.0.0.1/8080 && printf 'GET /health/ready HTTP/1.0\r\n\r\n' >&3 && head -n 1 <&3 | grep -q ' 200 '
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
     # Wait for the database to be healthy before starting the API
     depends_on:
       grocerease.db:

@@ -1,3 +1,4 @@
+using GrocerEase.Api;
 using GrocerEase.Api.Authentication;
 using GrocerEase.Api.Errors;
 using GrocerEase.Api.MiddleWare;
@@ -58,6 +59,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHealthEndpoints();
 
 app.Run();
 

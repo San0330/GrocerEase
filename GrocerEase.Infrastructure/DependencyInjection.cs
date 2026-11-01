@@ -34,6 +34,9 @@ public static class DependencyInjection
         services.AddDbContext<AppDbContext>(options =>
             options.UseNpgsql(configuration.GetConnectionString("DefaultConnection")));
 
+        services.AddHealthChecks()
+            .AddDbContextCheck<AppDbContext>("database", tags: [HealthCheckTags.Ready]);
+
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 
