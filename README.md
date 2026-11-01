@@ -105,6 +105,8 @@ dotnet test --filter "FullyQualifiedName!~IntegrationTests"         # unit tests
 
 The integration tests need Docker running, because they start a Postgres container.
 
+`GrocerEase.UnitTests/Architecture` holds the architecture tests: the layer dependency rule (Domain depends on nothing, Application only on Domain, Api never touches EF Core) and a few conventions (sealed handlers, no public setters on entities). If one fails, a layer reached somewhere it should not; read its message before changing the test.
+
 ## Notes
 
 The learning notes for this project are not in the repository. They live in an Obsidian vault on the author's machine:

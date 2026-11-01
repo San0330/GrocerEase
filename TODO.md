@@ -111,5 +111,3 @@ _None right now._
 - [ ] **Authorization** — there are no roles or policies, so nothing can be marked admin-only, and a `403` has no producer yet. Needed before the inventory dashboard.
 
 - [ ] **A least-privilege database role** — the API connects as the `postgres` superuser and migrates with the same identity. Use a limited role to run and a separate one to migrate; the migrations also need to be able to create `citext`.
-
-- [ ] **Architecture tests** — a test that fails when a layer references one it should not (the Api-to-EF leak would have been caught by it).
