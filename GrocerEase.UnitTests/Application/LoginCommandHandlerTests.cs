@@ -14,7 +14,6 @@ public class LoginCommandHandlerTests
     private readonly Mock<IJwtTokenGenerator> _jwt = new();
     private readonly Mock<IPasswordHasher> _passwords = new();
     private readonly Mock<IUserRepository> _users = new();
-    private readonly Mock<IUnitOfWork> _unitOfWork = new();
     private readonly LoginCommandHandler _sut;
 
     public LoginCommandHandlerTests()
@@ -40,7 +39,6 @@ public class LoginCommandHandlerTests
         Assert.Equal(user.Email.Value, result.Email);
         Assert.Equal("signed-token", result.Token);
         _users.Verify(r => r.AddAsync(It.IsAny<User>(), It.IsAny<CancellationToken>()), Times.Never);
-        _unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
