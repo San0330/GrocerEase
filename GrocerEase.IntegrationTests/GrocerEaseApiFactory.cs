@@ -8,7 +8,7 @@ using Testcontainers.PostgreSql;
 
 namespace GrocerEase.IntegrationTests;
 
-public sealed class GrocerEaseApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
+public class GrocerEaseApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
     public const string JwtSecret = "integration-test-secret-key-32b-min";
 
@@ -16,6 +16,9 @@ public sealed class GrocerEaseApiFactory : WebApplicationFactory<Program>, IAsyn
         .Build();
 
     private string? _connectionString;
+
+    /// <summary>When true the host migrates the empty database itself while it starts, as it does under compose.</summary>
+    protected virtual bool MigrateOnStartup => false;
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -30,6 +33,7 @@ public sealed class GrocerEaseApiFactory : WebApplicationFactory<Program>, IAsyn
                 ["JwtSettings:Audience"] = "GrocerEase",
                 ["JwtSettings:ExpiryMinutes"] = "60",
                 ["PasswordHashing:Cost"] = "11",
+                ["Database:MigrateOnStartup"] = MigrateOnStartup.ToString(),
             });
         });
     }
@@ -39,9 +43,13 @@ public sealed class GrocerEaseApiFactory : WebApplicationFactory<Program>, IAsyn
         await _postgres.StartAsync();
         _connectionString = _postgres.GetConnectionString();
 
+        // Building the host is what runs the startup migration, so there is nothing more to do in that mode.
         using var scope = Services.CreateScope();
-        var database = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        await database.Database.MigrateAsync();
+        if (!MigrateOnStartup)
+        {
+            var database = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            await database.Database.MigrateAsync();
+        }
     }
 
     async Task IAsyncLifetime.DisposeAsync()

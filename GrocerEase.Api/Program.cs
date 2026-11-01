@@ -3,6 +3,7 @@ using GrocerEase.Api.MiddleWare;
 using GrocerEase.Api.OpenApi;
 using GrocerEase.Application;
 using GrocerEase.Infrastructure;
+using GrocerEase.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -20,6 +21,12 @@ builder.Services.AddOpenApi(options =>
 });
 
 var app = builder.Build();
+
+// Off unless asked for: a production database is migrated by a deliberate step, not by whichever instance boots first.
+if (app.Configuration.GetValue<bool>("Database:MigrateOnStartup"))
+{
+    await app.Services.ApplyMigrationsAsync();
+}
 
 if (app.Environment.IsDevelopment())
 {

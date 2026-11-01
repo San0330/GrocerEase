@@ -24,6 +24,8 @@ services:
       - JwtSettings__Issuer=GrocerEase
       - JwtSettings__Audience=GrocerEase
       - JwtSettings__ExpiryMinutes=60
+      # Create or update the tables when the API starts. Safe because compose waits for a healthy database.
+      - Database__MigrateOnStartup=true
 
     # Restart the container automatically if it crashes
     restart: on-failure

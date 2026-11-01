@@ -72,6 +72,8 @@ dotnet user-secrets set "JwtSettings:Secret" "<at least 32 characters>" --projec
 dotnet run --project GrocerEase.Api --launch-profile https
 ```
 
+The launch profiles set `Database__MigrateOnStartup=true`, so the tables are created or updated when the host starts. Outside those profiles the setting defaults to off; apply migrations yourself with `dotnet ef database update --project GrocerEase.Infrastructure --startup-project GrocerEase.Api`.
+
 `GrocerEase.Api/auth.http` has sample requests.
 
 ### With Docker
@@ -81,7 +83,7 @@ cp .env.example .env     # then fill in JWT_SECRET and POSTGRES_PASSWORD
 docker compose up --build
 ```
 
-The API is at `http://localhost:5000` and Postgres at `localhost:5432`. `.env` is gitignored, and compose refuses to start if either value is missing.
+The API is at `http://localhost:5000` and Postgres at `localhost:5432`. Compose sets `Database__MigrateOnStartup=true`, so the API creates the tables on first start. `.env` is gitignored, and compose refuses to start if either value is missing.
 
 ## Tests
 
