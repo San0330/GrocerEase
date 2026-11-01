@@ -55,7 +55,7 @@ public class AuthenticationServiceTests
         Assert.Equal("Ada", saved.FirstName);
         Assert.Equal("Lovelace", saved.LastName);
         Assert.Equal("ada@example.com", saved.Email);
-        Assert.Equal(hash, saved.Password);
+        Assert.Equal(hash, saved.PasswordHash);
         Assert.NotEqual(Guid.Empty, saved.Id);
         Assert.Equal(7, saved.Id.Version);
         Assert.Equal(saved.Id, result.Id);
@@ -126,7 +126,7 @@ public class AuthenticationServiceTests
         _users
             .Setup(r => r.GetUserByEmailAsync("ada@example.com", It.IsAny<CancellationToken>()))
             .ReturnsAsync(user);
-        _passwords.Setup(p => p.Verify("Passw0rd!", user.Password)).Returns(true);
+        _passwords.Setup(p => p.Verify("Passw0rd!", user.PasswordHash)).Returns(true);
         _jwt
             .Setup(j => j.GenerateToken(user.Id, user.FirstName, user.LastName, user.Email))
             .Returns("signed-token");
@@ -179,7 +179,7 @@ public class AuthenticationServiceTests
         _users
             .Setup(r => r.GetUserByEmailAsync("ada@example.com", It.IsAny<CancellationToken>()))
             .ReturnsAsync(user);
-        _passwords.Setup(p => p.Verify("wrong-password", user.Password)).Returns(false);
+        _passwords.Setup(p => p.Verify("wrong-password", user.PasswordHash)).Returns(false);
 
         var exception = await Assert.ThrowsAsync<InvalidCredentialsException>(() =>
             _sut.LoginAsync(new LoginCommand("ada@example.com", "wrong-password")));
@@ -210,6 +210,6 @@ public class AuthenticationServiceTests
         FirstName = "Ada",
         LastName = "Lovelace",
         Email = "ada@example.com",
-        Password = "stored-hash",
+        PasswordHash = "stored-hash",
     };
 }

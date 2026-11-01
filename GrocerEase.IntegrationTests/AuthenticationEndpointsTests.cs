@@ -31,8 +31,8 @@ public sealed class AuthenticationEndpointsTests(GrocerEaseApiFactory factory) :
         var user = await database.Users.SingleAsync(u => u.Id == registered.Id);
 
         Assert.Equal(email.ToLowerInvariant(), user.Email);
-        Assert.NotEqual("Passw0rd!", user.Password);
-        Assert.StartsWith("$2", user.Password);
+        Assert.NotEqual("Passw0rd!", user.PasswordHash);
+        Assert.StartsWith("$2", user.PasswordHash);
         Assert.Equal(DateTimeKind.Utc, user.CreatedAt.Kind);
         Assert.InRange(user.CreatedAt, DateTime.UtcNow.AddMinutes(-2), DateTime.UtcNow.AddMinutes(2));
     }
@@ -60,7 +60,7 @@ public sealed class AuthenticationEndpointsTests(GrocerEaseApiFactory factory) :
         FirstName = "Ada",
         LastName = "Lovelace",
         Email = email,
-        Password = "hash",
+        PasswordHash = "hash",
     };
 
     [Fact]

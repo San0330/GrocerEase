@@ -49,7 +49,7 @@ public class AuthenticationService : IAuthenticationService
             FirstName = command.FirstName,
             LastName = command.LastName,
             Email = email,
-            Password = _passwordHasher.Hash(command.Password),
+            PasswordHash = _passwordHasher.Hash(command.Password),
         };
 
         await _userRepository.AddAsync(user, cancellationToken);
@@ -66,7 +66,7 @@ public class AuthenticationService : IAuthenticationService
 
         var user = await _userRepository.GetUserByEmailAsync(command.Email.ToLowerInvariant(), cancellationToken);
 
-        if (user is null || !_passwordHasher.Verify(command.Password, user.Password))
+        if (user is null || !_passwordHasher.Verify(command.Password, user.PasswordHash))
         {
             throw new InvalidCredentialsException();
         }

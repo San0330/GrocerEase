@@ -14,7 +14,7 @@ public class AuthenticationResultTests
             FirstName = "Ada",
             LastName = "Lovelace",
             Email = "ada@example.com",
-            Password = "hashed",
+            PasswordHash = "hashed",
         };
 
         var result = AuthenticationResult.From(user, "signed-token");
