@@ -1,7 +1,6 @@
 using FluentValidation;
 using GrocerEase.Contracts.Errors;
 using GrocerEase.Domain.Exceptions;
-using Microsoft.EntityFrameworkCore;
 
 namespace GrocerEase.Api.MiddleWare;
 
@@ -82,18 +81,6 @@ public class ErrorHandlingMiddleware
                     ReasonPhrase(badRequest.StatusCode),
                     "The request could not be read.",
                     ErrorCodes.MalformedRequest),
-
-            DbUpdateException { InnerException: { } inner } when inner.Message.Contains("23505")
-                => (StatusCodes.Status409Conflict,
-                    "Duplicate Email",
-                    "A user with this email already exists.",
-                    ErrorCodes.DuplicateEmail),
-
-            DbUpdateException
-                => (StatusCodes.Status400BadRequest,
-                    "Database Error",
-                    "A database constraint was violated.",
-                    ErrorCodes.DatabaseConstraint),
 
             _   => (StatusCodes.Status500InternalServerError,
                     "Internal Server Error",

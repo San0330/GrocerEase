@@ -6,6 +6,8 @@ namespace GrocerEase.Infrastructure.Persistence;
 
 public class AppDbContext : DbContext
 {
+    public const string UserEmailIndex = "IX_Users_Email";
+
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
     {
     }
@@ -29,6 +31,7 @@ public class AppDbContext : DbContext
 
         modelBuilder.Entity<User>()
             .HasIndex(u => u.Email)
+            .HasDatabaseName(UserEmailIndex)
             .IsUnique();
     }
 }

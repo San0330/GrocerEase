@@ -9,8 +9,8 @@ public class DuplicateEmailException : Exception, IAppException
     public string ErrorCode => ErrorCodes.DuplicateEmail;
     public string? Title => "Duplicate Email";
 
-    public DuplicateEmailException()
-        : base(DefaultMessage)
+    public DuplicateEmailException(Exception? innerException = null)
+        : base(DefaultMessage, innerException)
     {
     }
 }

@@ -1,7 +1,9 @@
 using System.Net;
 using System.Net.Http.Json;
 using GrocerEase.Contracts.Authentication;
+using GrocerEase.Application.Common.Interfaces.Persistence;
 using GrocerEase.Contracts.Errors;
+using GrocerEase.Domain.Entities;
 using GrocerEase.Domain.Exceptions;
 using GrocerEase.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -34,6 +36,32 @@ public sealed class AuthenticationEndpointsTests(GrocerEaseApiFactory factory) :
         Assert.Equal(DateTimeKind.Utc, user.CreatedAt.Kind);
         Assert.InRange(user.CreatedAt, DateTime.UtcNow.AddMinutes(-2), DateTime.UtcNow.AddMinutes(2));
     }
+
+    [Fact]
+    public async Task SaveChanges_WhenTwoRequestsRaceToTheSameEmail_ThrowsDuplicateEmail()
+    {
+        var email = UniqueEmail();
+
+        await using var scope = Factory.Services.CreateAsyncScope();
+        var users = scope.ServiceProvider.GetRequiredService<IUserRepository>();
+        var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+
+        await users.AddAsync(NewUser(email));
+        await unitOfWork.SaveChangesAsync();
+
+        // The service's own existence check is skipped here, as it would be by the losing request in a race.
+        await users.AddAsync(NewUser(email));
+        await Assert.ThrowsAsync<DuplicateEmailException>(() => unitOfWork.SaveChangesAsync());
+    }
+
+    private static User NewUser(string email) => new()
+    {
+        Id = Guid.CreateVersion7(),
+        FirstName = "Ada",
+        LastName = "Lovelace",
+        Email = email,
+        Password = "hash",
+    };
 
     [Fact]
     public async Task Register_WithTheSameEmailInAnotherCase_ReturnsDuplicateEmail()

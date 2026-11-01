@@ -106,31 +106,26 @@ public class ErrorHandlingMiddlewareTests
     }
 
     [Fact]
-    public async Task InvokeAsync_UniqueViolation_ReturnsDuplicateEmail()
+    public async Task InvokeAsync_DatabaseConstraintException_ReturnsAConstraintProblem()
     {
-        var exception = new DbUpdateException("update failed", new Exception("duplicate key value violates unique constraint 23505"));
-
-        var result = await InvokeAsync(_ => throw exception);
-
-        Assert.Equal(StatusCodes.Status409Conflict, result.Status);
-        var body = result.Body!.RootElement;
-        Assert.Equal(ErrorCodes.DuplicateEmail, body.GetProperty("code").GetString());
-        Assert.Equal("Duplicate Email", body.GetProperty("title").GetString());
-        Assert.Equal("A user with this email already exists.", body.GetProperty("detail").GetString());
-    }
-
-    [Fact]
-    public async Task InvokeAsync_OtherDatabaseFailure_ReturnsAConstraintProblem()
-    {
-        var exception = new DbUpdateException("23505 is only on the outer message", new Exception("check constraint"));
-
-        var result = await InvokeAsync(_ => throw exception);
+        var result = await InvokeAsync(_ => throw new DatabaseConstraintException());
 
         Assert.Equal(StatusCodes.Status400BadRequest, result.Status);
         var body = result.Body!.RootElement;
         Assert.Equal(ErrorCodes.DatabaseConstraint, body.GetProperty("code").GetString());
         Assert.Equal("Database Error", body.GetProperty("title").GetString());
         Assert.Equal("A database constraint was violated.", body.GetProperty("detail").GetString());
+    }
+
+    [Fact]
+    public async Task InvokeAsync_UntranslatedDatabaseFailure_ReturnsAServerError()
+    {
+        var exception = new DbUpdateException("update failed", new TimeoutException("connection timed out"));
+
+        var result = await InvokeAsync(_ => throw exception);
+
+        Assert.Equal(StatusCodes.Status500InternalServerError, result.Status);
+        Assert.Equal(ErrorCodes.Unexpected, result.Body!.RootElement.GetProperty("code").GetString());
     }
 
     [Theory]
