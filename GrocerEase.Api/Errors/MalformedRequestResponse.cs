@@ -28,7 +28,7 @@ public static class MalformedRequestResponse
         var errors = context.ModelState
             .Where(entry => entry.Value is { Errors.Count: > 0 })
             .ToDictionary(
-                entry => entry.Key.Length == 0 ? RootKey : entry.Key,
+                entry => entry.Key.Length == 0 ? RootKey : ErrorKeys.ToJsonName(entry.Key),
                 entry => entry.Value!.Errors
                     .Select(error => MessageFor(entry.Key, error))
                     .Distinct()

@@ -174,7 +174,7 @@ public class ErrorResponseExamplesTransformerTests
         Assert.Equal(422, example["status"]!.GetValue<int>());
         Assert.Equal("Validation Failed", example["title"]!.GetValue<string>());
         var errors = Assert.IsType<JsonObject>(example["errors"]);
-        var email = Assert.IsType<JsonArray>(errors["Email"]);
+        var email = Assert.IsType<JsonArray>(errors["email"]);
         Assert.Equal("Email must not be empty.", email[0]!.GetValue<string>());
     }
 }

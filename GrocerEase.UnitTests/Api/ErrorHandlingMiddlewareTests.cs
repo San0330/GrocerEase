@@ -53,10 +53,10 @@ public class ErrorHandlingMiddlewareTests
         var errors = body.GetProperty("errors");
         Assert.Equal(
             new[] { "Email is required.", "Email is not valid." },
-            errors.GetProperty("Email").EnumerateArray().Select(item => item.GetString()).ToArray());
+            errors.GetProperty("email").EnumerateArray().Select(item => item.GetString()).ToArray());
         Assert.Equal(
             "Password is required.",
-            Assert.Single(errors.GetProperty("Password").EnumerateArray()).GetString());
+            Assert.Single(errors.GetProperty("password").EnumerateArray()).GetString());
     }
 
     [Fact]

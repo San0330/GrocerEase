@@ -42,7 +42,7 @@ public sealed class MalformedRequestTests(GrocerEaseApiFactory factory) : Integr
         var response = await PostAsync("/auth/login", "{\"email\":\"ada@example.com\"}");
 
         var problem = await ReadAsync<ValidationErrorResponse>(response, HttpStatusCode.BadRequest);
-        Assert.True(problem.Errors.ContainsKey("Password"), string.Join(", ", problem.Errors.Keys));
+        Assert.True(problem.Errors.ContainsKey("password"), string.Join(", ", problem.Errors.Keys));
     }
 
     [Fact]

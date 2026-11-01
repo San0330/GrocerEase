@@ -29,7 +29,7 @@ public class MalformedRequestResponseTests
         Assert.Equal(400, body.Status);
         Assert.Equal("Malformed Request", body.Title);
         Assert.Equal("http-trace", body.TraceId);
-        Assert.Equal("The Email field is required.", Assert.Single(body.Errors["Email"]));
+        Assert.Equal("The Email field is required.", Assert.Single(body.Errors["email"]));
     }
 
     [Fact]
@@ -90,7 +90,7 @@ public class MalformedRequestResponseTests
 
         var body = BodyOf(modelState);
 
-        var message = Assert.Single(body.Errors["Password"]);
+        var message = Assert.Single(body.Errors["password"]);
         Assert.Equal("The input was not valid.", message);
     }
 
@@ -103,7 +103,7 @@ public class MalformedRequestResponseTests
 
         var body = BodyOf(modelState);
 
-        Assert.Single(body.Errors["Email"]);
+        Assert.Single(body.Errors["email"]);
     }
 
     private static ValidationErrorResponse BodyOf(ModelStateDictionary modelState) =>

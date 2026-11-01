@@ -1,4 +1,5 @@
 using FluentValidation;
+using GrocerEase.Api.Errors;
 using GrocerEase.Contracts.Errors;
 using GrocerEase.Domain.Exceptions;
 
@@ -49,7 +50,7 @@ public class ErrorHandlingMiddleware
         if (exception is ValidationException validationEx)
         {
             var errors = validationEx.Errors
-                .GroupBy(e => e.PropertyName)
+                .GroupBy(e => ErrorKeys.ToJsonName(e.PropertyName))
                 .ToDictionary(
                     g => g.Key,
                     g => g.Select(e => e.ErrorMessage).ToArray());

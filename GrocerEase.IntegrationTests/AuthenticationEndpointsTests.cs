@@ -94,7 +94,7 @@ public sealed class AuthenticationEndpointsTests(GrocerEaseApiFactory factory) :
         Assert.Equal(ErrorCodes.ValidationFailed, problem.Code);
         Assert.Equal(422, problem.Status);
         Assert.Equal("Validation Failed", problem.Title);
-        Assert.True(problem.Errors.ContainsKey("Password"));
+        Assert.True(problem.Errors.ContainsKey("password"));
         Assert.False(string.IsNullOrWhiteSpace(problem.TraceId));
     }
 

@@ -122,7 +122,7 @@ public sealed class ErrorResponseExamplesTransformer : IOpenApiOperationTransfor
         ["title"] = "Malformed Request",
         ["errors"] = new JsonObject
         {
-            ["Password"] = new JsonArray("The Password field is required."),
+            ["password"] = new JsonArray("The Password field is required."),
         },
         ["traceId"] = TraceId,
     };
@@ -139,7 +139,7 @@ public sealed class ErrorResponseExamplesTransformer : IOpenApiOperationTransfor
             ["title"] = "Validation Failed",
             ["errors"] = new JsonObject
             {
-                ["Email"] = new JsonArray("Email must not be empty."),
+                ["email"] = new JsonArray("Email must not be empty."),
             },
             ["traceId"] = TraceId,
         };
