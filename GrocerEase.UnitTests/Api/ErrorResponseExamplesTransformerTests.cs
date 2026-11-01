@@ -76,14 +76,15 @@ public class ErrorResponseExamplesTransformerTests
     }
 
     [Fact]
-    public async Task TransformAsync_Profile_SetsOnlyTheServerExample()
+    public async Task TransformAsync_Profile_SetsTheUnauthorizedAndServerExamples()
     {
         var operation = OperationWith("401", "500");
 
         await _transformer.TransformAsync(operation, ContextFor("profile"), CancellationToken.None);
 
+        AssertProblem(operation, "401", ErrorCodes.Unauthorized, 401, "Unauthorized",
+            "Authentication is required, or the bearer token is missing, expired, or not valid.");
         AssertProblem(operation, "500", ErrorCodes.Unexpected, 500, "Internal Server Error", "An unexpected error occurred.");
-        Assert.Null(Media(operation, "401").Example);
     }
 
     [Fact]

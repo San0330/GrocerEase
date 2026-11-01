@@ -12,7 +12,7 @@ namespace GrocerEase.Api.Controllers;
 [Authorize]
 [Produces("application/json")]
 [ProducesResponseType<ProfileResponse>(StatusCodes.Status200OK)]
-[ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized, "application/problem+json")]
+[ProducesResponseType<ErrorResponse>(StatusCodes.Status401Unauthorized, "application/problem+json")]
 [ProducesResponseType<ErrorResponse>(StatusCodes.Status500InternalServerError, "application/problem+json")]
 public class ProfileController : ControllerBase
 {

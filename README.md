@@ -32,6 +32,7 @@ Errors are returned as `application/problem+json`. Clients should branch on `cod
 |---|---|---|---|
 | `400` | `Request.Malformed` | The body cannot be read or bound: broken JSON, `null`, an empty body, a wrong type, or a missing property. Also Kestrel rejecting the request while reading the body (`400`, `408`, `413`) | `errors` keyed by field name or JSON path (`$.email`), except Kestrel's, which has `detail` |
 | `400` | `Database.ConstraintViolation` | A database constraint other than the unique email failed (register) | `detail` |
+| `401` | `Auth.Unauthorized` | A protected endpoint such as `/profile` was called without a bearer token, or with one that is expired, tampered with, or issued for another audience. `WWW-Authenticate` is `Bearer`, or `Bearer error="invalid_token"` when a token was sent | `detail` |
 | `401` | `User.InvalidCredentials` | Wrong email or password | `detail` |
 | `409` | `User.DuplicateEmail` | The email is already registered | `detail` |
 | `422` | `Validation.Failed` | The body was read but a value broke a rule, such as an empty string or a weak password | `errors` keyed by property name |

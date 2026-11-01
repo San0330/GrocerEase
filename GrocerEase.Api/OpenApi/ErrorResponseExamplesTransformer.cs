@@ -17,6 +17,12 @@ public sealed class ErrorResponseExamplesTransformer : IOpenApiOperationTransfor
     {
         var path = context.Description.RelativePath;
 
+        if (path == "profile")
+        {
+            Set(operation, "401", ErrorCodes.Unauthorized, 401, "Unauthorized",
+                "Authentication is required, or the bearer token is missing, expired, or not valid.");
+        }
+
         if (path == "auth/register")
         {
             Set(operation, "409", ErrorCodes.DuplicateEmail, 409, "Duplicate Email", "A user with this email already exists.");

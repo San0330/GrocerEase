@@ -1,6 +1,8 @@
 using System.Net;
 using System.Net.Http.Json;
+using GrocerEase.Contracts.Errors;
 using GrocerEase.Contracts.Profile;
+using GrocerEase.Domain.Exceptions;
 
 namespace GrocerEase.IntegrationTests;
 
@@ -12,7 +14,7 @@ public sealed class ProfileEndpointTests(GrocerEaseApiFactory factory) : Integra
     {
         var response = await Client.GetAsync("/profile");
 
-        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        await AssertUnauthorizedProblemAsync(response, expectedChallenge: "Bearer");
     }
 
     [Fact]
@@ -42,6 +44,18 @@ public sealed class ProfileEndpointTests(GrocerEaseApiFactory factory) : Integra
 
         var response = await Client.SendAsync(request);
 
-        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        await AssertUnauthorizedProblemAsync(response, expectedChallenge: "Bearer error=\"invalid_token\"");
+    }
+
+    private async Task AssertUnauthorizedProblemAsync(HttpResponseMessage response, string expectedChallenge)
+    {
+        Assert.StartsWith("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+        Assert.Equal(expectedChallenge, response.Headers.WwwAuthenticate.ToString());
+
+        var problem = await ReadAsync<ErrorResponse>(response, HttpStatusCode.Unauthorized);
+        Assert.Equal(ErrorCodes.Unauthorized, problem.Code);
+        Assert.Equal(401, problem.Status);
+        Assert.Equal("Unauthorized", problem.Title);
+        Assert.False(string.IsNullOrEmpty(problem.TraceId));
     }
 }
