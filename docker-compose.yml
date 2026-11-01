@@ -16,7 +16,8 @@ services:
 
     # Set environment variables inside the container
     environment:
-      - ASPNETCORE_ENVIRONMENT=Development
+      # Production keeps the OpenAPI document and development-only behaviour off. Run the API locally for those.
+      - ASPNETCORE_ENVIRONMENT=Production
       # ${VAR:?message} makes compose stop with that message when VAR is missing.
       # The values come from the gitignored .env file next to this one (see .env.example).
       - ConnectionStrings__DefaultConnection=Host=grocerease.db;Port=5432;Database=GrocerEaseDb;Username=postgres;Password=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is not set - copy .env.example to .env}

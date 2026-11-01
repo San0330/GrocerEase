@@ -87,7 +87,7 @@ cp .env.example .env     # then fill in JWT_SECRET and POSTGRES_PASSWORD
 docker compose up --build
 ```
 
-The API is at `http://localhost:5000` and Postgres at `localhost:5432`. Compose sets `Database__MigrateOnStartup=true`, so the API creates the tables on first start. `.env` is gitignored, and compose refuses to start if either value is missing.
+The API is at `http://localhost:5000` and Postgres at `localhost:5432`. Compose sets `Database__MigrateOnStartup=true`, so the API creates the tables on first start, and runs it in the `Production` environment as a non-root user, so the OpenAPI document is not served; run the API locally for that. `.env` is gitignored, and compose refuses to start if either value is missing.
 
 ## Tests
 

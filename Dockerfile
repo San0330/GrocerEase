@@ -42,5 +42,9 @@ COPY --from=build /app/publish .
 # Expose port 8080 (ASP.NET Core default in containers)
 EXPOSE 8080
 
+# Run as the non-root user the base image provides (APP_UID), so a compromised process is not root in the container.
+# Port 8080 is above 1024, so no privilege is needed to listen on it.
+USER $APP_UID
+
 # Set the entry point — runs the compiled API dll
 ENTRYPOINT ["dotnet", "GrocerEase.Api.dll"]
