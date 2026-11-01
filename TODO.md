@@ -25,7 +25,7 @@ The architecture foundation is genuinely good. Most projects at this stage are a
 |---|---|
 | Async throughout | Done — register and login await the database instead of blocking a thread |
 | Tests | Done — `GrocerEase.UnitTests` checks services, validators, tokens, and error mapping with no database; `GrocerEase.IntegrationTests` runs register, login, and profile against the real host and Postgres |
-| Unit of Work | Done — `AddAsync` only tracks the user. `AuthenticationService` calls `IUnitOfWork.SaveChangesAsync`, so one use case can commit several repositories together |
+| Unit of Work | Done — `AddAsync` only tracks the user. `RegisterCommandHandler` calls `IUnitOfWork.SaveChangesAsync`, so one use case can commit several repositories together |
 | JWT auth middleware | Done — `GET /profile` is `[Authorize]`-only; other routes are still public |
 | Options validation at startup | Done — missing or short `JwtSettings`, and a BCrypt cost outside 4–31, stop the host before it listens |
 | CORS | Deployment hygiene — HTTP is redirected to HTTPS when the host knows an HTTPS port. A browser frontend still needs a CORS policy |
@@ -86,10 +86,10 @@ _None right now._
 - [x] Async register and login — `SingleOrDefaultAsync` / `SaveChangesAsync`, with `CancellationToken` from the request
 - [x] `GET /profile` — returns the caller's id and email, `[Authorize]` only
 - [x] `422` validation errors documented in the OpenAPI spec
-- [x] Unit tests in `GrocerEase.UnitTests` — validators, `AuthenticationService`, `AuthenticationResult.From()`, password hasher, JWT generator, auth and profile controllers, error middleware, and OpenAPI examples. No database and no running host
+- [x] Unit tests in `GrocerEase.UnitTests` — validators, the command handlers, `AuthenticationResult.From()`, password hasher, JWT generator, auth and profile controllers, error middleware, and OpenAPI examples. No database and no running host
 - [x] Integration tests in `GrocerEase.IntegrationTests` — `POST /auth/register`, `POST /auth/login`, and `GET /profile` through `WebApplicationFactory` and a Postgres 16 container, including duplicate email (`409`), weak passwords (`422`), invalid credentials, and bearer tokens. `Program` is public so the test host can start the app
 - [x] Duplicate-email pre-check — `RegisterAsync` looks up the lowercased email and throws `DuplicateEmailException` before hashing or inserting. The response is still `409` / `User.DuplicateEmail` / "Duplicate Email". The unique index remains for two requests that pass the check at the same time
-- [x] `IUnitOfWork` — `UserRepository.AddAsync` no longer calls `SaveChangesAsync`. `AuthenticationService` commits after the add. `UnitOfWork` and the repository share the scoped `AppDbContext`
+- [x] `IUnitOfWork` — `UserRepository.AddAsync` no longer calls `SaveChangesAsync`. `RegisterCommandHandler` commits after the add. `UnitOfWork` and the repository share the scoped `AppDbContext`
 - [x] BCrypt cost — `PasswordHashing:Cost` defaults to 11 and is validated at startup (4–31). New hashes use that cost. `Verify` reads the cost stored in the hash, so existing passwords still match after the setting is raised
 - [x] `app.UseHttpsRedirection()` — HTTP requests redirect to the HTTPS port with `307` when the host is listening on HTTPS (`dotnet run --launch-profile https`). The `http` launch profile and the integration-test host have no HTTPS port, so those requests stay on HTTP
 - [x] JWT signing secret removed from `appsettings.json` — a deployment that forgets `JwtSettings__Secret` now fails at startup. locally the value comes from `dotnet user-secrets` (`UserSecretsId` on `GrocerEase.Api`; set it with `dotnet user-secrets set "JwtSettings:Secret" "<value>" --project GrocerEase.Api`), and `docker-compose.yml` supplies a development value
@@ -105,3 +105,11 @@ _None right now._
 - [ ] **Registration still reveals which emails exist** — `409 User.DuplicateEmail`. Login no longer leaks it through timing. Fixing register needs an email-confirmation flow.
 
 - [ ] **Apply migrations as a pipeline step** — `Database:MigrateOnStartup` covers local runs and compose. A production database needs a deliberate step.
+
+- [ ] **Read the JSON naming policy in `ErrorKeys`** — error keys are camel-cased by a fixed rule. If the JSON options ever change, the keys must follow them.
+
+- [ ] **Authorization** — there are no roles or policies, so nothing can be marked admin-only, and a `403` has no producer yet. Needed before the inventory dashboard.
+
+- [ ] **A least-privilege database role** — the API connects as the `postgres` superuser and migrates with the same identity. Use a limited role to run and a separate one to migrate; the migrations also need to be able to create `citext`.
+
+- [ ] **Architecture tests** — a test that fails when a layer references one it should not (the Api-to-EF leak would have been caught by it).

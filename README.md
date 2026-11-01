@@ -56,15 +56,15 @@ What is done and what is still open is tracked in [`TODO.md`](TODO.md).
 
 ## Project layout
 
-The solution is `GrocerEase.slnx`, on .NET 10, and follows Clean Architecture.
+The solution is `GrocerEase.slnx`, on .NET 10, and follows Clean Architecture. Package versions live in `Directory.Packages.props`; the ones that ship with ASP.NET Core share one `AspNetCoreVersion`, so bump that one number to update them together.
 
 | Project | Role |
 |---|---|
-| `GrocerEase.Domain` | Entities |
-| `GrocerEase.Application` | Services, commands, validators, and the interfaces the other layers implement |
+| `GrocerEase.Domain` | `User`, the `Email` value object, and the domain exceptions. Knows nothing about HTTP or the database |
+| `GrocerEase.Application` | One handler per use case (`RegisterCommandHandler`, `LoginCommandHandler`), commands, validators, and the interfaces the other layers implement. A validating decorator runs a command's validator before its handler |
 | `GrocerEase.Infrastructure` | EF Core / Npgsql, repositories, BCrypt hashing, JWT generation |
 | `GrocerEase.Contracts` | HTTP request and response shapes |
-| `GrocerEase.Api` | Controllers, error-handling middleware, startup, OpenAPI |
+| `GrocerEase.Api` | Controllers, the JWT bearer scheme, error handling (one `ApiProblem` writes every error), rate limiting, health endpoints, startup, OpenAPI |
 | `GrocerEase.UnitTests` | Services, validators, tokens, controllers, and middleware. No database and no running host |
 | `GrocerEase.IntegrationTests` | Register, login, and profile against the real host and a Postgres 16 container |
 
@@ -73,6 +73,8 @@ The solution is `GrocerEase.slnx`, on .NET 10, and follows Clean Architecture.
 ### Locally
 
 You need the .NET 10 SDK and a PostgreSQL instance. Set the connection string in `GrocerEase.Api/appsettings.Development.json`, or override it with the `ConnectionStrings__DefaultConnection` environment variable.
+
+The migrations create the `citext` extension (a case-insensitive text type for the email column). A database owner can do that on PostgreSQL 13 and later; on an older server, or with a more restricted role, run `CREATE EXTENSION citext;` once first.
 
 The JWT signing secret is not in the repository. The host will not start without it. Store it as a user secret:
 
