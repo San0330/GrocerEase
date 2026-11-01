@@ -28,7 +28,7 @@ public static class UnauthorizedResponse
             : $"{JwtBearerDefaults.AuthenticationScheme} error=\"invalid_token\"";
 
         var body = new ErrorResponse(
-            ErrorCodes.Unauthorized,
+            ApiErrorCodes.Unauthorized,
             StatusCodes.Status401Unauthorized,
             "Unauthorized",
             Detail,

@@ -1,3 +1,5 @@
+using GrocerEase.Application.Common.Exceptions;
+using GrocerEase.Api.Errors;
 using System.Diagnostics;
 using System.Text.Json;
 using FluentValidation;
@@ -46,7 +48,7 @@ public class ErrorHandlingMiddlewareTests
         Assert.Equal(StatusCodes.Status422UnprocessableEntity, result.Status);
         Assert.StartsWith("application/problem+json", result.ContentType);
         var body = result.Body!.RootElement;
-        Assert.Equal(ErrorCodes.ValidationFailed, body.GetProperty("code").GetString());
+        Assert.Equal(ApiErrorCodes.ValidationFailed, body.GetProperty("code").GetString());
         Assert.Equal(422, body.GetProperty("status").GetInt32());
         Assert.Equal("Validation Failed", body.GetProperty("title").GetString());
         Assert.Equal(activity.Id, body.GetProperty("traceId").GetString());
@@ -77,15 +79,12 @@ public class ErrorHandlingMiddlewareTests
     }
 
     [Theory]
-    [InlineData(400, "Bad Request")]
-    [InlineData(403, "Forbidden")]
-    [InlineData(404, "Not Found")]
-    [InlineData(409, "Conflict")]
-    [InlineData(422, "Unprocessable Entity")]
-    [InlineData(418, "Error")]
-    public async Task InvokeAsync_AppException_UsesTheStatusReasonPhrase(int statusCode, string title)
+    [InlineData(ErrorKind.Invalid, 400, "Bad Request")]
+    [InlineData(ErrorKind.Unauthenticated, 401, "Unauthorized")]
+    [InlineData(ErrorKind.Conflict, 409, "Conflict")]
+    public async Task InvokeAsync_AppException_MapsItsKindToAStatusAndReasonPhrase(ErrorKind kind, int statusCode, string title)
     {
-        var result = await InvokeAsync(_ => throw new StubAppException(statusCode));
+        var result = await InvokeAsync(_ => throw new StubAppException(kind));
 
         Assert.Equal(statusCode, result.Status);
         var body = result.Body!.RootElement;
@@ -113,7 +112,7 @@ public class ErrorHandlingMiddlewareTests
 
         Assert.Equal(StatusCodes.Status400BadRequest, result.Status);
         var body = result.Body!.RootElement;
-        Assert.Equal(ErrorCodes.DatabaseConstraint, body.GetProperty("code").GetString());
+        Assert.Equal(DatabaseConstraintException.Code, body.GetProperty("code").GetString());
         Assert.Equal("Database Error", body.GetProperty("title").GetString());
         Assert.Equal("A database constraint was violated.", body.GetProperty("detail").GetString());
     }
@@ -141,7 +140,7 @@ public class ErrorHandlingMiddlewareTests
         var result = await InvokeAsync(_ => throw exception);
 
         Assert.Equal(StatusCodes.Status500InternalServerError, result.Status);
-        Assert.Equal(ErrorCodes.Unexpected, result.Body!.RootElement.GetProperty("code").GetString());
+        Assert.Equal(ApiErrorCodes.Unexpected, result.Body!.RootElement.GetProperty("code").GetString());
     }
 
     [Theory]
@@ -158,7 +157,7 @@ public class ErrorHandlingMiddlewareTests
         Assert.Equal(statusCode, result.Status);
         Assert.StartsWith("application/problem+json", result.ContentType);
         var body = result.Body!.RootElement;
-        Assert.Equal(ErrorCodes.MalformedRequest, body.GetProperty("code").GetString());
+        Assert.Equal(ApiErrorCodes.MalformedRequest, body.GetProperty("code").GetString());
         Assert.Equal(statusCode, body.GetProperty("status").GetInt32());
         Assert.Equal(title, body.GetProperty("title").GetString());
         Assert.Equal("The request could not be read.", body.GetProperty("detail").GetString());
@@ -173,7 +172,7 @@ public class ErrorHandlingMiddlewareTests
 
         Assert.Equal(StatusCodes.Status500InternalServerError, result.Status);
         var body = result.Body!.RootElement;
-        Assert.Equal(ErrorCodes.Unexpected, body.GetProperty("code").GetString());
+        Assert.Equal(ApiErrorCodes.Unexpected, body.GetProperty("code").GetString());
         Assert.Equal("Internal Server Error", body.GetProperty("title").GetString());
         Assert.Equal("An unexpected error occurred.", body.GetProperty("detail").GetString());
         Assert.DoesNotContain("secret", body.GetRawText());
@@ -232,9 +231,9 @@ public class ErrorHandlingMiddlewareTests
 
     private sealed record ErrorResult(int Status, string? ContentType, JsonDocument? Body);
 
-    private sealed class StubAppException(int statusCode) : Exception("detail text"), IAppException
+    private sealed class StubAppException(ErrorKind kind) : Exception("detail text"), IAppException
     {
-        public int StatusCode { get; } = statusCode;
+        public ErrorKind Kind { get; } = kind;
         public string ErrorMessage => "detail text";
         public string ErrorCode => "Test.Code";
     }

@@ -46,9 +46,9 @@ public class ErrorHandlingMiddleware
         }
     }
 
-    // Validation failures and typed domain errors below 500 are caller mistakes, not server faults.
+    // Validation failures and typed domain errors are caller mistakes, not server faults.
     private static bool IsExpected(Exception exception) =>
-        exception is ValidationException or IAppException { StatusCode: < 500 } or BadHttpRequestException { StatusCode: < 500 };
+        exception is ValidationException or IAppException or BadHttpRequestException { StatusCode: < 500 };
 
     private static async Task HandleExceptionAsync(HttpContext context, Exception exception)
     {
@@ -63,7 +63,7 @@ public class ErrorHandlingMiddleware
                     g => g.Select(e => e.ErrorMessage).ToArray());
 
             var validationProblem = new ValidationErrorResponse(
-                ErrorCodes.ValidationFailed,
+                ApiErrorCodes.ValidationFailed,
                 StatusCodes.Status422UnprocessableEntity,
                 "Validation Failed",
                 errors,
@@ -77,8 +77,8 @@ public class ErrorHandlingMiddleware
         var (statusCode, title, detail, code) = exception switch
         {
             IAppException appEx
-                => (appEx.StatusCode,
-                    appEx.Title ?? ReasonPhrase(appEx.StatusCode),
+                => (appEx.Kind.ToStatusCode(),
+                    appEx.Title ?? ReasonPhrase(appEx.Kind.ToStatusCode()),
                     appEx.ErrorMessage,
                     appEx.ErrorCode),
 
@@ -88,12 +88,12 @@ public class ErrorHandlingMiddleware
                 => (badRequest.StatusCode,
                     ReasonPhrase(badRequest.StatusCode),
                     "The request could not be read.",
-                    ErrorCodes.MalformedRequest),
+                    ApiErrorCodes.MalformedRequest),
 
             _   => (StatusCodes.Status500InternalServerError,
                     "Internal Server Error",
                     "An unexpected error occurred.",
-                    ErrorCodes.Unexpected)
+                    ApiErrorCodes.Unexpected)
         };
 
         var problem = new ErrorResponse(code, statusCode, title, detail, traceId);

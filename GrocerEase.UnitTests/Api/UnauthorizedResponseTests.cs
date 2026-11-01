@@ -25,7 +25,7 @@ public class UnauthorizedResponseTests
         Assert.Equal("Bearer", context.Response.Headers.WWWAuthenticate.ToString());
 
         var body = await ReadBodyAsync(context);
-        Assert.Equal(ErrorCodes.Unauthorized, body.GetProperty("code").GetString());
+        Assert.Equal(ApiErrorCodes.Unauthorized, body.GetProperty("code").GetString());
         Assert.Equal(401, body.GetProperty("status").GetInt32());
         Assert.Equal("Unauthorized", body.GetProperty("title").GetString());
         Assert.Equal("http-trace", body.GetProperty("traceId").GetString());

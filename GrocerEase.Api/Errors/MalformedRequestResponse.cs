@@ -43,7 +43,7 @@ public static class MalformedRequestResponse
         }
 
         var body = new ValidationErrorResponse(
-            ErrorCodes.MalformedRequest,
+            ApiErrorCodes.MalformedRequest,
             StatusCodes.Status400BadRequest,
             "Malformed Request",
             errors,

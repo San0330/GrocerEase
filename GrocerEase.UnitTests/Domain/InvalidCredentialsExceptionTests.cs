@@ -9,7 +9,7 @@ public class InvalidCredentialsExceptionTests
     {
         var exception = new InvalidCredentialsException();
 
-        Assert.Equal(401, exception.StatusCode);
+        Assert.Equal(ErrorKind.Unauthenticated, exception.Kind);
         Assert.Equal(ErrorCodes.InvalidCredentials, exception.ErrorCode);
         Assert.Equal("Email or password is invalid.", exception.ErrorMessage);
         Assert.Equal(exception.ErrorMessage, exception.Message);

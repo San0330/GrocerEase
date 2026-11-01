@@ -1,4 +1,5 @@
 using System.Threading.RateLimiting;
+using GrocerEase.Api.Errors;
 using GrocerEase.Api.MiddleWare;
 using GrocerEase.Contracts.Errors;
 using GrocerEase.Domain.Exceptions;
@@ -57,7 +58,7 @@ public static class AuthRateLimiting
         }
 
         var body = new ErrorResponse(
-            ErrorCodes.RateLimited,
+            ApiErrorCodes.RateLimited,
             StatusCodes.Status429TooManyRequests,
             "Too Many Requests",
             "Too many requests. Try again later.",

@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text;
+using GrocerEase.Api.Errors;
 using GrocerEase.Contracts.Errors;
 using GrocerEase.Domain.Exceptions;
 
@@ -28,7 +29,7 @@ public sealed class MalformedRequestTests(GrocerEaseApiFactory factory) : Integr
 
         var problem = await ReadAsync<ValidationErrorResponse>(response, HttpStatusCode.BadRequest);
         Assert.StartsWith("application/problem+json", response.Content.Headers.ContentType?.MediaType);
-        Assert.Equal(ErrorCodes.MalformedRequest, problem.Code);
+        Assert.Equal(ApiErrorCodes.MalformedRequest, problem.Code);
         Assert.Equal(400, problem.Status);
         Assert.Equal("Malformed Request", problem.Title);
         Assert.NotEmpty(problem.Errors);
@@ -63,7 +64,7 @@ public sealed class MalformedRequestTests(GrocerEaseApiFactory factory) : Integr
         var response = await PostAsync("/auth/login", "{\"email\":\"\",\"password\":\"\"}");
 
         var problem = await ReadAsync<ValidationErrorResponse>(response, HttpStatusCode.UnprocessableEntity);
-        Assert.Equal(ErrorCodes.ValidationFailed, problem.Code);
+        Assert.Equal(ApiErrorCodes.ValidationFailed, problem.Code);
     }
 
     [Fact]

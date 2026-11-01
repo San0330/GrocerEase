@@ -92,7 +92,7 @@ public class AuthenticationServiceTests
         var exception = await Assert.ThrowsAsync<DuplicateEmailException>(() =>
             _sut.RegisterAsync(ValidRegister()));
 
-        Assert.Equal(409, exception.StatusCode);
+        Assert.Equal(ErrorKind.Conflict, exception.Kind);
         Assert.Equal(ErrorCodes.DuplicateEmail, exception.ErrorCode);
         Assert.Equal("A user with this email already exists.", exception.ErrorMessage);
         _passwords.Verify(p => p.Hash(It.IsAny<string>()), Times.Never);

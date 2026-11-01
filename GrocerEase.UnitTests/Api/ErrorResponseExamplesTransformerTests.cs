@@ -1,3 +1,5 @@
+using GrocerEase.Application.Common.Exceptions;
+using GrocerEase.Api.Errors;
 using System.Text.Json.Nodes;
 using GrocerEase.Api.OpenApi;
 using GrocerEase.Domain.Exceptions;
@@ -20,7 +22,7 @@ public class ErrorResponseExamplesTransformerTests
         await _transformer.TransformAsync(operation, ContextFor("auth/register"), CancellationToken.None);
 
         AssertProblem(operation, "409", ErrorCodes.DuplicateEmail, 409, "Duplicate Email", "A user with this email already exists.");
-        AssertProblem(operation, "500", ErrorCodes.Unexpected, 500, "Internal Server Error", "An unexpected error occurred.");
+        AssertProblem(operation, "500", ApiErrorCodes.Unexpected, 500, "Internal Server Error", "An unexpected error occurred.");
         AssertValidation(operation);
     }
 
@@ -37,12 +39,12 @@ public class ErrorResponseExamplesTransformerTests
         Assert.Null(media.Example);
 
         var malformed = Assert.IsType<JsonObject>(media.Examples!["malformedRequest"].Value);
-        Assert.Equal(ErrorCodes.MalformedRequest, malformed["code"]!.GetValue<string>());
+        Assert.Equal(ApiErrorCodes.MalformedRequest, malformed["code"]!.GetValue<string>());
         Assert.Equal(400, malformed["status"]!.GetValue<int>());
         Assert.IsType<JsonObject>(malformed["errors"]);
 
         var database = Assert.IsType<JsonObject>(media.Examples["databaseConstraint"].Value);
-        Assert.Equal(ErrorCodes.DatabaseConstraint, database["code"]!.GetValue<string>());
+        Assert.Equal(DatabaseConstraintException.Code, database["code"]!.GetValue<string>());
         Assert.Equal("A database constraint was violated.", database["detail"]!.GetValue<string>());
     }
 
@@ -54,12 +56,12 @@ public class ErrorResponseExamplesTransformerTests
         await _transformer.TransformAsync(operation, ContextFor("auth/login"), CancellationToken.None);
 
         var malformed = Assert.IsType<JsonObject>(Media(operation, "400").Example);
-        Assert.Equal(ErrorCodes.MalformedRequest, malformed["code"]!.GetValue<string>());
+        Assert.Equal(ApiErrorCodes.MalformedRequest, malformed["code"]!.GetValue<string>());
         Assert.Equal(400, malformed["status"]!.GetValue<int>());
         Assert.Equal("Malformed Request", malformed["title"]!.GetValue<string>());
         Assert.IsType<JsonObject>(malformed["errors"]);
         AssertProblem(operation, "401", ErrorCodes.InvalidCredentials, 401, "Unauthorized", "Email or password is invalid.");
-        AssertProblem(operation, "500", ErrorCodes.Unexpected, 500, "Internal Server Error", "An unexpected error occurred.");
+        AssertProblem(operation, "500", ApiErrorCodes.Unexpected, 500, "Internal Server Error", "An unexpected error occurred.");
         AssertValidation(operation);
     }
 
@@ -72,7 +74,7 @@ public class ErrorResponseExamplesTransformerTests
 
         await _transformer.TransformAsync(operation, ContextFor(path), CancellationToken.None);
 
-        AssertProblem(operation, "429", ErrorCodes.RateLimited, 429, "Too Many Requests", "Too many requests. Try again later.");
+        AssertProblem(operation, "429", ApiErrorCodes.RateLimited, 429, "Too Many Requests", "Too many requests. Try again later.");
     }
 
     [Fact]
@@ -82,9 +84,9 @@ public class ErrorResponseExamplesTransformerTests
 
         await _transformer.TransformAsync(operation, ContextFor("profile"), CancellationToken.None);
 
-        AssertProblem(operation, "401", ErrorCodes.Unauthorized, 401, "Unauthorized",
+        AssertProblem(operation, "401", ApiErrorCodes.Unauthorized, 401, "Unauthorized",
             "Authentication is required, or the bearer token is missing, expired, or not valid.");
-        AssertProblem(operation, "500", ErrorCodes.Unexpected, 500, "Internal Server Error", "An unexpected error occurred.");
+        AssertProblem(operation, "500", ApiErrorCodes.Unexpected, 500, "Internal Server Error", "An unexpected error occurred.");
     }
 
     [Fact]
@@ -170,7 +172,7 @@ public class ErrorResponseExamplesTransformerTests
     private static void AssertValidation(OpenApiOperation operation)
     {
         var example = Assert.IsType<JsonObject>(Media(operation, "422").Example);
-        Assert.Equal(ErrorCodes.ValidationFailed, example["code"]!.GetValue<string>());
+        Assert.Equal(ApiErrorCodes.ValidationFailed, example["code"]!.GetValue<string>());
         Assert.Equal(422, example["status"]!.GetValue<int>());
         Assert.Equal("Validation Failed", example["title"]!.GetValue<string>());
         var errors = Assert.IsType<JsonObject>(example["errors"]);

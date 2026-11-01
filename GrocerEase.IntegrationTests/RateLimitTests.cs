@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using GrocerEase.Api.Errors;
 using GrocerEase.Contracts.Errors;
 using GrocerEase.Domain.Exceptions;
 using Microsoft.AspNetCore.Hosting;
@@ -54,7 +55,7 @@ public sealed class RateLimitTests : IDisposable
         Assert.True(int.Parse(limited.Headers.GetValues("Retry-After").Single()) is > 0 and <= 60);
 
         var problem = (await limited.Content.ReadFromJsonAsync<ErrorResponse>(System.Text.Json.JsonSerializerOptions.Web))!;
-        Assert.Equal(ErrorCodes.RateLimited, problem.Code);
+        Assert.Equal(ApiErrorCodes.RateLimited, problem.Code);
         Assert.Equal(429, problem.Status);
         Assert.Equal("Too Many Requests", problem.Title);
         Assert.False(string.IsNullOrEmpty(problem.TraceId));

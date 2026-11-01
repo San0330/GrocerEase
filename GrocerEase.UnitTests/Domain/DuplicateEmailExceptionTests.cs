@@ -9,7 +9,7 @@ public class DuplicateEmailExceptionTests
     {
         var exception = new DuplicateEmailException();
 
-        Assert.Equal(409, exception.StatusCode);
+        Assert.Equal(ErrorKind.Conflict, exception.Kind);
         Assert.Equal(ErrorCodes.DuplicateEmail, exception.ErrorCode);
         Assert.Equal("Duplicate Email", ((IAppException)exception).Title);
         Assert.Equal("A user with this email already exists.", exception.ErrorMessage);

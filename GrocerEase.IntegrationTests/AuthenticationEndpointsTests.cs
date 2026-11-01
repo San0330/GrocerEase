@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using GrocerEase.Contracts.Authentication;
 using GrocerEase.Application.Common.Interfaces.Persistence;
+using GrocerEase.Api.Errors;
 using GrocerEase.Contracts.Errors;
 using GrocerEase.Domain.Entities;
 using GrocerEase.Domain.Exceptions;
@@ -91,7 +92,7 @@ public sealed class AuthenticationEndpointsTests(GrocerEaseApiFactory factory) :
 
         var problem = await ReadAsync<ValidationErrorResponse>(response, HttpStatusCode.UnprocessableEntity);
         Assert.StartsWith("application/problem+json", response.Content.Headers.ContentType?.MediaType);
-        Assert.Equal(ErrorCodes.ValidationFailed, problem.Code);
+        Assert.Equal(ApiErrorCodes.ValidationFailed, problem.Code);
         Assert.Equal(422, problem.Status);
         Assert.Equal("Validation Failed", problem.Title);
         Assert.True(problem.Errors.ContainsKey("password"));

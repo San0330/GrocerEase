@@ -1,3 +1,4 @@
+using GrocerEase.Application.Common.Exceptions;
 using GrocerEase.Domain.Exceptions;
 using GrocerEase.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;

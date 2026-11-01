@@ -25,7 +25,7 @@ public class MalformedRequestResponseTests
         Assert.Equal(StatusCodes.Status400BadRequest, json.StatusCode);
         Assert.Equal("application/problem+json", json.ContentType);
         var body = Assert.IsType<ValidationErrorResponse>(json.Value);
-        Assert.Equal(ErrorCodes.MalformedRequest, body.Code);
+        Assert.Equal(ApiErrorCodes.MalformedRequest, body.Code);
         Assert.Equal(400, body.Status);
         Assert.Equal("Malformed Request", body.Title);
         Assert.Equal("http-trace", body.TraceId);

@@ -1,4 +1,6 @@
 using System.Text.Json.Nodes;
+using GrocerEase.Api.Errors;
+using GrocerEase.Application.Common.Exceptions;
 using GrocerEase.Contracts.Errors;
 using GrocerEase.Domain.Exceptions;
 using Microsoft.AspNetCore.OpenApi;
@@ -19,7 +21,7 @@ public sealed class ErrorResponseExamplesTransformer : IOpenApiOperationTransfor
 
         if (path == "profile")
         {
-            Set(operation, "401", ErrorCodes.Unauthorized, 401, "Unauthorized",
+            Set(operation, "401", ApiErrorCodes.Unauthorized, 401, "Unauthorized",
                 "Authentication is required, or the bearer token is missing, expired, or not valid.");
         }
 
@@ -42,12 +44,12 @@ public sealed class ErrorResponseExamplesTransformer : IOpenApiOperationTransfor
 
         if (path is "auth/register" or "auth/login")
         {
-            Set(operation, "429", ErrorCodes.RateLimited, 429, "Too Many Requests", "Too many requests. Try again later.");
+            Set(operation, "429", ApiErrorCodes.RateLimited, 429, "Too Many Requests", "Too many requests. Try again later.");
         }
 
         if (path is "auth/register" or "auth/login" or "profile")
         {
-            Set(operation, "500", ErrorCodes.Unexpected, 500, "Internal Server Error", "An unexpected error occurred.");
+            Set(operation, "500", ApiErrorCodes.Unexpected, 500, "Internal Server Error", "An unexpected error occurred.");
         }
 
         return Task.CompletedTask;
@@ -105,7 +107,7 @@ public sealed class ErrorResponseExamplesTransformer : IOpenApiOperationTransfor
                 Summary = "A database constraint was violated",
                 Value = new JsonObject
                 {
-                    ["code"] = ErrorCodes.DatabaseConstraint,
+                    ["code"] = DatabaseConstraintException.Code,
                     ["status"] = 400,
                     ["title"] = "Database Error",
                     ["detail"] = "A database constraint was violated.",
@@ -117,7 +119,7 @@ public sealed class ErrorResponseExamplesTransformer : IOpenApiOperationTransfor
 
     private static JsonObject MalformedExample() => new()
     {
-        ["code"] = ErrorCodes.MalformedRequest,
+        ["code"] = ApiErrorCodes.MalformedRequest,
         ["status"] = StatusCodes.Status400BadRequest,
         ["title"] = "Malformed Request",
         ["errors"] = new JsonObject
@@ -134,7 +136,7 @@ public sealed class ErrorResponseExamplesTransformer : IOpenApiOperationTransfor
 
         media.Example = new JsonObject
         {
-            ["code"] = ErrorCodes.ValidationFailed,
+            ["code"] = ApiErrorCodes.ValidationFailed,
             ["status"] = StatusCodes.Status422UnprocessableEntity,
             ["title"] = "Validation Failed",
             ["errors"] = new JsonObject

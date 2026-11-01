@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using GrocerEase.Api.Errors;
 using GrocerEase.Contracts.Errors;
 using GrocerEase.Contracts.Profile;
 using GrocerEase.Domain.Exceptions;
@@ -53,7 +54,7 @@ public sealed class ProfileEndpointTests(GrocerEaseApiFactory factory) : Integra
         Assert.Equal(expectedChallenge, response.Headers.WwwAuthenticate.ToString());
 
         var problem = await ReadAsync<ErrorResponse>(response, HttpStatusCode.Unauthorized);
-        Assert.Equal(ErrorCodes.Unauthorized, problem.Code);
+        Assert.Equal(ApiErrorCodes.Unauthorized, problem.Code);
         Assert.Equal(401, problem.Status);
         Assert.Equal("Unauthorized", problem.Title);
         Assert.False(string.IsNullOrEmpty(problem.TraceId));

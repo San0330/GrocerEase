@@ -1,6 +1,7 @@
+using GrocerEase.Application.Common.Exceptions;
 using GrocerEase.Domain.Exceptions;
 
-namespace GrocerEase.UnitTests.Domain;
+namespace GrocerEase.UnitTests.Application;
 
 public class DatabaseConstraintExceptionTests
 {
@@ -9,8 +10,8 @@ public class DatabaseConstraintExceptionTests
     {
         var exception = new DatabaseConstraintException();
 
-        Assert.Equal(400, exception.StatusCode);
-        Assert.Equal(ErrorCodes.DatabaseConstraint, exception.ErrorCode);
+        Assert.Equal(ErrorKind.Invalid, exception.Kind);
+        Assert.Equal(DatabaseConstraintException.Code, exception.ErrorCode);
         Assert.Equal("Database Error", ((IAppException)exception).Title);
         Assert.Equal("A database constraint was violated.", exception.ErrorMessage);
         Assert.Equal(exception.ErrorMessage, exception.Message);

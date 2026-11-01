@@ -4,7 +4,7 @@ public class DuplicateEmailException : Exception, IAppException
 {
     private const string DefaultMessage = "A user with this email already exists.";
 
-    public int StatusCode => 409;
+    public ErrorKind Kind => ErrorKind.Conflict;
     public string ErrorMessage => DefaultMessage;
     public string ErrorCode => ErrorCodes.DuplicateEmail;
     public string? Title => "Duplicate Email";
