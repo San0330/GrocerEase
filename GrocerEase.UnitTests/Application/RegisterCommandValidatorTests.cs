@@ -134,7 +134,7 @@ public class RegisterCommandValidatorTests
         var result = _validator.TestValidate(Valid() with { Password = tooLong });
 
         result.ShouldHaveValidationErrorFor(x => x.Password)
-            .WithErrorMessage("Password must be at most 72 characters.");
+            .WithErrorMessage("Password must be at most 72 bytes in UTF-8; accented letters and emoji use more than one byte each.");
     }
 
     [Fact]
@@ -158,7 +158,7 @@ public class RegisterCommandValidatorTests
         var result = _validator.TestValidate(Valid() with { Password = password });
 
         result.ShouldHaveValidationErrorFor(x => x.Password)
-            .WithErrorMessage("Password must be at most 72 characters.");
+            .WithErrorMessage("Password must be at most 72 bytes in UTF-8; accented letters and emoji use more than one byte each.");
     }
 
     [Fact]

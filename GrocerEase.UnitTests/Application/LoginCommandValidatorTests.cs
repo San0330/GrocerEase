@@ -36,4 +36,28 @@ public class LoginCommandValidatorTests
 
         result.ShouldHaveValidationErrorFor(x => x.Password);
     }
+
+    [Fact]
+    public void Password_Over72Bytes_IsRejected()
+    {
+        var result = _validator.TestValidate(new LoginCommand("ada@example.com", new string('a', 73)));
+
+        result.ShouldHaveValidationErrorFor(x => x.Password);
+    }
+
+    [Fact]
+    public void Password_Over72BytesButUnder72Characters_IsRejected()
+    {
+        var result = _validator.TestValidate(new LoginCommand("ada@example.com", new string('é', 40)));
+
+        result.ShouldHaveValidationErrorFor(x => x.Password);
+    }
+
+    [Fact]
+    public void Password_At72Bytes_IsAccepted()
+    {
+        var result = _validator.TestValidate(new LoginCommand("ada@example.com", new string('a', 72)));
+
+        result.ShouldNotHaveValidationErrorFor(x => x.Password);
+    }
 }

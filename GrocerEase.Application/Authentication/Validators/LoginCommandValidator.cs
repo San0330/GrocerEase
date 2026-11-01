@@ -11,7 +11,9 @@ public class LoginCommandValidator : AbstractValidator<LoginCommand>
             .NotEmpty()
             .EmailAddress();
 
+        // No password longer than this can have been registered, so there is nothing to hash and compare.
         RuleFor(x => x.Password)
-            .NotEmpty();
+            .NotEmpty()
+            .FitsBcrypt();
     }
 }
