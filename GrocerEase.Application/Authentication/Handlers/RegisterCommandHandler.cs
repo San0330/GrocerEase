@@ -1,41 +1,33 @@
-using FluentValidation;
 using GrocerEase.Application.Authentication.Commands;
+using GrocerEase.Application.Common.Handlers;
 using GrocerEase.Application.Common.Interfaces.Authentication;
 using GrocerEase.Application.Common.Interfaces.Persistence;
 using GrocerEase.Domain.Entities;
 using GrocerEase.Domain.Exceptions;
 
-namespace GrocerEase.Application.Authentication;
+namespace GrocerEase.Application.Authentication.Handlers;
 
-public class AuthenticationService : IAuthenticationService
+public sealed class RegisterCommandHandler : ICommandHandler<RegisterCommand, AuthenticationResult>
 {
     private readonly IJwtTokenGenerator _jwtTokenGenerator;
     private readonly IPasswordHasher _passwordHasher;
     private readonly IUserRepository _userRepository;
     private readonly IUnitOfWork _unitOfWork;
-    private readonly IValidator<RegisterCommand> _registerValidator;
-    private readonly IValidator<LoginCommand> _loginValidator;
 
-    public AuthenticationService(
+    public RegisterCommandHandler(
         IJwtTokenGenerator jwtTokenGenerator,
         IPasswordHasher passwordHasher,
         IUserRepository userRepository,
-        IUnitOfWork unitOfWork,
-        IValidator<RegisterCommand> registerValidator,
-        IValidator<LoginCommand> loginValidator)
+        IUnitOfWork unitOfWork)
     {
         _jwtTokenGenerator = jwtTokenGenerator;
         _passwordHasher = passwordHasher;
         _userRepository = userRepository;
         _unitOfWork = unitOfWork;
-        _registerValidator = registerValidator;
-        _loginValidator = loginValidator;
     }
 
-    public async Task<AuthenticationResult> RegisterAsync(RegisterCommand command, CancellationToken cancellationToken = default)
+    public async Task<AuthenticationResult> HandleAsync(RegisterCommand command, CancellationToken cancellationToken = default)
     {
-        await _registerValidator.ValidateAndThrowAsync(command, cancellationToken);
-
         var email = command.Email.ToLowerInvariant();
         var existing = await _userRepository.GetUserByEmailAsync(email, cancellationToken);
         if (existing is not null)
@@ -54,25 +46,6 @@ public class AuthenticationService : IAuthenticationService
 
         await _userRepository.AddAsync(user, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-        var token = _jwtTokenGenerator.GenerateToken(user.Id, user.FirstName, user.LastName, user.Email);
-
-        return AuthenticationResult.From(user, token);
-    }
-
-    public async Task<AuthenticationResult> LoginAsync(LoginCommand command, CancellationToken cancellationToken = default)
-    {
-        await _loginValidator.ValidateAndThrowAsync(command, cancellationToken);
-
-        var user = await _userRepository.GetUserByEmailAsync(command.Email.ToLowerInvariant(), cancellationToken);
-
-        // Verify even when there is no user, so a wrong email is not answered faster than a wrong password.
-        var passwordMatches = _passwordHasher.Verify(command.Password, user?.PasswordHash);
-
-        if (user is null || !passwordMatches)
-        {
-            throw new InvalidCredentialsException();
-        }
 
         var token = _jwtTokenGenerator.GenerateToken(user.Id, user.FirstName, user.LastName, user.Email);
 

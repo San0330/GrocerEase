@@ -1,6 +1,7 @@
 using GrocerEase.Api.Controllers;
 using GrocerEase.Application.Authentication;
 using GrocerEase.Application.Authentication.Commands;
+using GrocerEase.Application.Common.Handlers;
 using GrocerEase.Contracts.Authentication;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -10,12 +11,13 @@ namespace GrocerEase.UnitTests.Api;
 
 public class AuthenticationControllerTests
 {
-    private readonly Mock<IAuthenticationService> _authentication = new();
+    private readonly Mock<ICommandHandler<RegisterCommand, AuthenticationResult>> _register = new();
+    private readonly Mock<ICommandHandler<LoginCommand, AuthenticationResult>> _login = new();
     private readonly AuthenticationController _controller;
 
     public AuthenticationControllerTests()
     {
-        _controller = new AuthenticationController(_authentication.Object);
+        _controller = new AuthenticationController(_register.Object, _login.Object);
     }
 
     [Fact]
@@ -23,8 +25,8 @@ public class AuthenticationControllerTests
     {
         var id = Guid.Parse("018f6b2e-7c3a-7a1b-8c2d-4e5f60718293");
         using var cts = new CancellationTokenSource();
-        _authentication
-            .Setup(s => s.RegisterAsync(
+        _register
+            .Setup(s => s.HandleAsync(
                 It.Is<RegisterCommand>(c =>
                     c.FirstName == "Ada" &&
                     c.LastName == "Lovelace" &&
@@ -52,8 +54,8 @@ public class AuthenticationControllerTests
     {
         var id = Guid.Parse("018f6b2e-7c3a-7a1b-8c2d-4e5f60718293");
         using var cts = new CancellationTokenSource();
-        _authentication
-            .Setup(s => s.LoginAsync(
+        _login
+            .Setup(s => s.HandleAsync(
                 It.Is<LoginCommand>(c => c.Email == "ada@example.com" && c.Password == "Passw0rd!"),
                 cts.Token))
             .ReturnsAsync(new AuthenticationResult(id, "Ada", "Lovelace", "ada@example.com", "signed-token"));

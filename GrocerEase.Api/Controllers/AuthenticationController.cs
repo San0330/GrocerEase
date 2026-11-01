@@ -1,6 +1,7 @@
 using GrocerEase.Api.RateLimiting;
 using GrocerEase.Application.Authentication;
 using GrocerEase.Application.Authentication.Commands;
+using GrocerEase.Application.Common.Handlers;
 using GrocerEase.Contracts.Authentication;
 using GrocerEase.Contracts.Errors;
 using Microsoft.AspNetCore.Mvc;
@@ -17,11 +18,15 @@ namespace GrocerEase.Api.Controllers;
 [ProducesResponseType<ValidationErrorResponse>(StatusCodes.Status422UnprocessableEntity, "application/problem+json")]
 public class AuthenticationController : ControllerBase
 {
-    private readonly IAuthenticationService _authenticationService;
+    private readonly ICommandHandler<RegisterCommand, AuthenticationResult> _register;
+    private readonly ICommandHandler<LoginCommand, AuthenticationResult> _login;
 
-    public AuthenticationController(IAuthenticationService authenticationService)
+    public AuthenticationController(
+        ICommandHandler<RegisterCommand, AuthenticationResult> register,
+        ICommandHandler<LoginCommand, AuthenticationResult> login)
     {
-        _authenticationService = authenticationService;
+        _register = register;
+        _login = login;
     }
 
     [HttpPost("register")]
@@ -38,7 +43,7 @@ public class AuthenticationController : ControllerBase
             request.Email,
             request.Password);
 
-        var result = await _authenticationService.RegisterAsync(command, cancellationToken);
+        var result = await _register.HandleAsync(command, cancellationToken);
 
         // 201 without a Location header: the user has no address of its own to point at yet.
         return StatusCode(StatusCodes.Status201Created, new AuthenticationResponse(
@@ -59,7 +64,7 @@ public class AuthenticationController : ControllerBase
             request.Email,
             request.Password);
 
-        var result = await _authenticationService.LoginAsync(command, cancellationToken);
+        var result = await _login.HandleAsync(command, cancellationToken);
 
         return Ok(new AuthenticationResponse(
             result.Id,
