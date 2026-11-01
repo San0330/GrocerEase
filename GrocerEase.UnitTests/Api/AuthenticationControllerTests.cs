@@ -2,6 +2,7 @@ using GrocerEase.Api.Controllers;
 using GrocerEase.Application.Authentication;
 using GrocerEase.Application.Authentication.Commands;
 using GrocerEase.Contracts.Authentication;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Moq;
 
@@ -18,7 +19,7 @@ public class AuthenticationControllerTests
     }
 
     [Fact]
-    public async Task Register_ReturnsTheAuthenticationResponse()
+    public async Task Register_ReturnsCreatedWithTheAuthenticationResponse()
     {
         var id = Guid.Parse("018f6b2e-7c3a-7a1b-8c2d-4e5f60718293");
         using var cts = new CancellationTokenSource();
@@ -36,8 +37,9 @@ public class AuthenticationControllerTests
             new RegisterRequest("Ada", "Lovelace", "Ada@Example.COM", "Passw0rd!"),
             cts.Token);
 
-        var ok = Assert.IsType<OkObjectResult>(result);
-        var body = Assert.IsType<AuthenticationResponse>(ok.Value);
+        var created = Assert.IsType<ObjectResult>(result);
+        Assert.Equal(StatusCodes.Status201Created, created.StatusCode);
+        var body = Assert.IsType<AuthenticationResponse>(created.Value);
         Assert.Equal(id, body.Id);
         Assert.Equal("Ada", body.FirstName);
         Assert.Equal("Lovelace", body.LastName);

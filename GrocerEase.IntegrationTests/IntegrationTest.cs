@@ -33,7 +33,7 @@ public abstract class IntegrationTest : IDisposable
             "/auth/register",
             new RegisterRequest("Ada", "Lovelace", email, password));
 
-        return await ReadAsync<AuthenticationResponse>(response, HttpStatusCode.OK);
+        return await ReadAsync<AuthenticationResponse>(response, HttpStatusCode.Created);
     }
 
     protected async Task<T> ReadAsync<T>(HttpResponseMessage response, HttpStatusCode expected)

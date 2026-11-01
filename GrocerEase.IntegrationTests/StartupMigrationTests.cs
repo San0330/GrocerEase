@@ -19,7 +19,7 @@ public sealed class StartupMigrationTests : IClassFixture<StartupMigrationTests.
             "/auth/register",
             new RegisterRequest("Ada", "Lovelace", $"{Guid.NewGuid():N}@example.com", "Passw0rd!"));
 
-        Assert.True(response.StatusCode == HttpStatusCode.OK, await response.Content.ReadAsStringAsync());
+        Assert.True(response.StatusCode == HttpStatusCode.Created, await response.Content.ReadAsStringAsync());
     }
 
     public sealed class MigratingApiFactory : GrocerEaseApiFactory

@@ -25,9 +25,11 @@ public class AuthenticationController : ControllerBase
     }
 
     [HttpPost("register")]
-    [ProducesResponseType<AuthenticationResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType<AuthenticationResponse>(StatusCodes.Status201Created)]
     [ProducesResponseType<ErrorResponse>(StatusCodes.Status409Conflict, "application/problem+json")]
-    [ProducesResponseType<ErrorResponse>(StatusCodes.Status400BadRequest, "application/problem+json")]
+    // A malformed body is a ValidationErrorResponse. A database constraint failure is an ErrorResponse: the OpenAPI
+    // transformer publishes both shapes for this status.
+    [ProducesResponseType<ValidationErrorResponse>(StatusCodes.Status400BadRequest, "application/problem+json")]
     public async Task<IActionResult> Register(RegisterRequest request, CancellationToken cancellationToken)
     {
         var command = new RegisterCommand(
@@ -38,7 +40,8 @@ public class AuthenticationController : ControllerBase
 
         var result = await _authenticationService.RegisterAsync(command, cancellationToken);
 
-        return Ok(new AuthenticationResponse(
+        // 201 without a Location header: the user has no address of its own to point at yet.
+        return StatusCode(StatusCodes.Status201Created, new AuthenticationResponse(
             result.Id,
             result.FirstName,
             result.LastName,

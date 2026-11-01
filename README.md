@@ -20,7 +20,7 @@ Only the backend's authentication slice exists so far. There are no products, ca
 
 | Endpoint | Auth | Purpose |
 |---|---|---|
-| `POST /auth/register` | public | Create a user and return a JWT. Duplicate email returns `409`, validation failures return `422` |
+| `POST /auth/register` | public | Create a user and return a JWT with `201`. Duplicate email returns `409`, validation failures return `422` |
 | `POST /auth/login` | public | Verify credentials and return a JWT. Wrong credentials return `401` |
 | `GET /profile` | bearer token | Return the caller's id and email |
 
