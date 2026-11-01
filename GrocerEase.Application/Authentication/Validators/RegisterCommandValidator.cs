@@ -1,5 +1,7 @@
 using FluentValidation;
 using GrocerEase.Application.Authentication.Commands;
+using GrocerEase.Domain.Entities;
+using GrocerEase.Domain.ValueObjects;
 
 namespace GrocerEase.Application.Authentication.Validators;
 
@@ -9,16 +11,16 @@ public class RegisterCommandValidator : AbstractValidator<RegisterCommand>
     {
         RuleFor(x => x.FirstName)
             .NotEmpty()
-            .MaximumLength(50);
+            .MaximumLength(User.NameMaxLength);
 
         RuleFor(x => x.LastName)
             .NotEmpty()
-            .MaximumLength(50);
+            .MaximumLength(User.NameMaxLength);
 
         RuleFor(x => x.Email)
             .NotEmpty()
             .EmailAddress()
-            .MaximumLength(254);
+            .MaximumLength(Email.MaxLength);
 
         RuleFor(x => x.Password)
             .NotEmpty()

@@ -7,6 +7,9 @@ namespace GrocerEase.Domain.ValueObjects;
 /// </summary>
 public sealed record Email
 {
+    /// <summary>The longest address SMTP allows (RFC 5321). The validator and the database column both use it.</summary>
+    public const int MaxLength = 254;
+
     public string Value { get; }
 
     private Email(string value) => Value = value;

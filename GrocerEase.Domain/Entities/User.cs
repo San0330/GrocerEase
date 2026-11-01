@@ -4,6 +4,12 @@ namespace GrocerEase.Domain.Entities;
 
 public class User
 {
+    /// <summary>The longest first or last name. The validators and the database column both use it.</summary>
+    public const int NameMaxLength = 50;
+
+    /// <summary>Room for a BCrypt hash (60 characters) and for a stronger algorithm's longer output later.</summary>
+    public const int PasswordHashMaxLength = 100;
+
     // For EF Core to materialize a row. Every new user goes through Register.
     private User()
     {

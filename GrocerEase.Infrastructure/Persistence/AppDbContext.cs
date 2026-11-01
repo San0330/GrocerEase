@@ -16,6 +16,22 @@ public class AppDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        // citext compares case-insensitively, so the unique index rejects "Ada@x.com" next to "ada@x.com" even for a
+        // row written by something that never went through Email.Create. The extension is created by the migration.
+        modelBuilder.HasPostgresExtension("citext");
+
+        modelBuilder.Entity<User>(user =>
+        {
+            user.Property(u => u.FirstName).HasMaxLength(User.NameMaxLength);
+            user.Property(u => u.LastName).HasMaxLength(User.NameMaxLength);
+            user.Property(u => u.PasswordHash).HasMaxLength(User.PasswordHashMaxLength);
+
+            // citext has no length of its own, so the limit on an address is a check constraint.
+            user.ToTable(table => table.HasCheckConstraint(
+                "CK_Users_Email_MaxLength",
+                $"char_length(\"Email\") <= {Email.MaxLength}"));
+        });
+
         // The application supplies the time (IDateTimeProvider), so there is one clock and it can be faked in tests.
         modelBuilder.Entity<User>()
             .Property(u => u.CreatedAt)
@@ -23,6 +39,7 @@ public class AppDbContext : DbContext
 
         modelBuilder.Entity<User>()
             .Property(u => u.Email)
+            .HasColumnType("citext")
             .HasConversion(email => email.Value, stored => Email.Create(stored));
 
         modelBuilder.Entity<User>()
