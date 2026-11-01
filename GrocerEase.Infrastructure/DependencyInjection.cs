@@ -1,16 +1,13 @@
-using System.Text;
 using GrocerEase.Application.Common.Interfaces.Authentication;
 using GrocerEase.Application.Common.Interfaces.Persistence;
 using GrocerEase.Application.Common.Interfaces.Services;
 using GrocerEase.Infrastructure.Authentication;
 using GrocerEase.Infrastructure.Persistence;
 using GrocerEase.Infrastructure.Services;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
-using Microsoft.IdentityModel.Tokens;
 
 namespace GrocerEase.Infrastructure;
 
@@ -29,26 +26,6 @@ public static class DependencyInjection
             .Bind(configuration.GetSection(PasswordHashingSettings.SectionName))
             .ValidateDataAnnotations()
             .ValidateOnStart();
-
-        services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-            .AddJwtBearer();
-
-        services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
-            .Configure<IOptions<JwtSettings>>((options, jwtOptions) =>
-            {
-                var jwtSettings = jwtOptions.Value;
-                options.TokenValidationParameters = new TokenValidationParameters
-                {
-                    ValidateIssuer = true,
-                    ValidateAudience = true,
-                    ValidateLifetime = true,
-                    ValidateIssuerSigningKey = true,
-                    ValidIssuer = jwtSettings.Issuer,
-                    ValidAudience = jwtSettings.Audience,
-                    IssuerSigningKey = new SymmetricSecurityKey(
-                        Encoding.UTF8.GetBytes(jwtSettings.Secret)),
-                };
-            });
 
         services.AddSingleton<IJwtTokenGenerator, JwtTokenGenerator>();
         services.AddSingleton<IDateTimeProvider, DateTimeProvider>();
