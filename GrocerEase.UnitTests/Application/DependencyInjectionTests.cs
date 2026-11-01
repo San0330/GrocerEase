@@ -7,6 +7,7 @@ using GrocerEase.Application.Authentication.Validators;
 using GrocerEase.Application.Common.Handlers;
 using GrocerEase.Application.Common.Interfaces.Authentication;
 using GrocerEase.Application.Common.Interfaces.Persistence;
+using GrocerEase.Application.Common.Interfaces.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 
@@ -72,6 +73,7 @@ public class DependencyInjectionTests
         services.AddSingleton(Mock.Of<IPasswordHasher>());
         services.AddSingleton((users ?? new Mock<IUserRepository>()).Object);
         services.AddSingleton(Mock.Of<IUnitOfWork>());
+        services.AddSingleton(Mock.Of<IDateTimeProvider>());
         return services.BuildServiceProvider();
     }
 }

@@ -4,6 +4,8 @@ using GrocerEase.Application.Common.Interfaces.Authentication;
 using GrocerEase.Application.Common.Interfaces.Persistence;
 using GrocerEase.Domain.Entities;
 using GrocerEase.Domain.Exceptions;
+using GrocerEase.Domain.ValueObjects;
+using GrocerEase.UnitTests.Support;
 using Moq;
 
 namespace GrocerEase.UnitTests.Application;
@@ -14,6 +16,8 @@ public class RegisterCommandHandlerTests
     private readonly Mock<IPasswordHasher> _passwords = new();
     private readonly Mock<IUserRepository> _users = new();
     private readonly Mock<IUnitOfWork> _unitOfWork = new();
+    private static readonly DateTime Now = new(2026, 11, 1, 9, 30, 0, DateTimeKind.Utc);
+
     private readonly RegisterCommandHandler _sut;
 
     public RegisterCommandHandlerTests()
@@ -22,7 +26,7 @@ public class RegisterCommandHandlerTests
             .Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
-        _sut = new RegisterCommandHandler(_jwt.Object, _passwords.Object, _users.Object, _unitOfWork.Object);
+        _sut = new RegisterCommandHandler(_jwt.Object, _passwords.Object, _users.Object, _unitOfWork.Object, new FixedDateTimeProvider(Now));
     }
 
     [Fact]
@@ -46,8 +50,9 @@ public class RegisterCommandHandlerTests
         Assert.NotNull(saved);
         Assert.Equal("Ada", saved.FirstName);
         Assert.Equal("Lovelace", saved.LastName);
-        Assert.Equal("ada@example.com", saved.Email);
+        Assert.Equal("ada@example.com", saved.Email.Value);
         Assert.Equal(hash, saved.PasswordHash);
+        Assert.Equal(Now, saved.CreatedAt);
         Assert.NotEqual(Guid.Empty, saved.Id);
         Assert.Equal(7, saved.Id.Version);
         Assert.Equal(saved.Id, result.Id);
@@ -69,7 +74,7 @@ public class RegisterCommandHandlerTests
 
         await _sut.HandleAsync(ValidRegister(), cts.Token);
 
-        _users.Verify(r => r.GetUserByEmailAsync("ada@example.com", cts.Token), Times.Once);
+        _users.Verify(r => r.GetUserByEmailAsync(Email.Create("ada@example.com"), cts.Token), Times.Once);
         _users.Verify(r => r.AddAsync(It.IsAny<User>(), cts.Token), Times.Once);
         _unitOfWork.Verify(u => u.SaveChangesAsync(cts.Token), Times.Once);
     }
@@ -78,7 +83,7 @@ public class RegisterCommandHandlerTests
     public async Task WhenEmailAlreadyExists_DoesNotCreateAnotherUser()
     {
         _users
-            .Setup(r => r.GetUserByEmailAsync("ada@example.com", It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetUserByEmailAsync(Email.Create("ada@example.com"), It.IsAny<CancellationToken>()))
             .ReturnsAsync(ExistingUser());
 
         var exception = await Assert.ThrowsAsync<DuplicateEmailException>(() =>
@@ -98,12 +103,10 @@ public class RegisterCommandHandlerTests
     private static RegisterCommand ValidRegister() =>
         new("Ada", "Lovelace", "Ada@Example.COM", "Passw0rd!");
 
-    private static User ExistingUser() => new()
-    {
-        Id = Guid.Parse("018f6b2e-7c3a-7a1b-8c2d-4e5f60718293"),
-        FirstName = "Ada",
-        LastName = "Lovelace",
-        Email = "ada@example.com",
-        PasswordHash = "stored-hash",
-    };
+    private static User ExistingUser() => User.Register(
+        "Ada",
+        "Lovelace",
+        Email.Create("ada@example.com"),
+        "stored-hash",
+        new DateTime(2026, 11, 1, 9, 0, 0, DateTimeKind.Utc));
 }

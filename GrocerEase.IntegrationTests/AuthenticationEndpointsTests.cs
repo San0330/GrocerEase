@@ -6,6 +6,7 @@ using GrocerEase.Api.Errors;
 using GrocerEase.Contracts.Errors;
 using GrocerEase.Domain.Entities;
 using GrocerEase.Domain.Exceptions;
+using GrocerEase.Domain.ValueObjects;
 using GrocerEase.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -31,7 +32,7 @@ public sealed class AuthenticationEndpointsTests(GrocerEaseApiFactory factory) :
         var database = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var user = await database.Users.SingleAsync(u => u.Id == registered.Id);
 
-        Assert.Equal(email.ToLowerInvariant(), user.Email);
+        Assert.Equal(email.ToLowerInvariant(), user.Email.Value);
         Assert.NotEqual("Passw0rd!", user.PasswordHash);
         Assert.StartsWith("$2", user.PasswordHash);
         Assert.Equal(DateTimeKind.Utc, user.CreatedAt.Kind);
@@ -55,14 +56,8 @@ public sealed class AuthenticationEndpointsTests(GrocerEaseApiFactory factory) :
         await Assert.ThrowsAsync<DuplicateEmailException>(() => unitOfWork.SaveChangesAsync());
     }
 
-    private static User NewUser(string email) => new()
-    {
-        Id = Guid.CreateVersion7(),
-        FirstName = "Ada",
-        LastName = "Lovelace",
-        Email = email,
-        PasswordHash = "hash",
-    };
+    private static User NewUser(string email) =>
+        User.Register("Ada", "Lovelace", Email.Create(email), "hash", DateTime.UtcNow);
 
     [Fact]
     public async Task Register_WithTheSameEmailInAnotherCase_ReturnsDuplicateEmail()

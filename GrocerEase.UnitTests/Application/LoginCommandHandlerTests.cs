@@ -4,6 +4,7 @@ using GrocerEase.Application.Common.Interfaces.Authentication;
 using GrocerEase.Application.Common.Interfaces.Persistence;
 using GrocerEase.Domain.Entities;
 using GrocerEase.Domain.Exceptions;
+using GrocerEase.Domain.ValueObjects;
 using Moq;
 
 namespace GrocerEase.UnitTests.Application;
@@ -26,17 +27,17 @@ public class LoginCommandHandlerTests
     {
         var user = ExistingUser();
         _users
-            .Setup(r => r.GetUserByEmailAsync("ada@example.com", It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetUserByEmailAsync(Email.Create("ada@example.com"), It.IsAny<CancellationToken>()))
             .ReturnsAsync(user);
         _passwords.Setup(p => p.Verify("Passw0rd!", user.PasswordHash)).Returns(true);
         _jwt
-            .Setup(j => j.GenerateToken(user.Id, user.FirstName, user.LastName, user.Email))
+            .Setup(j => j.GenerateToken(user.Id, user.FirstName, user.LastName, user.Email.Value))
             .Returns("signed-token");
 
         var result = await _sut.HandleAsync(new LoginCommand("Ada@Example.COM", "Passw0rd!"));
 
         Assert.Equal(user.Id, result.Id);
-        Assert.Equal(user.Email, result.Email);
+        Assert.Equal(user.Email.Value, result.Email);
         Assert.Equal("signed-token", result.Token);
         _users.Verify(r => r.AddAsync(It.IsAny<User>(), It.IsAny<CancellationToken>()), Times.Never);
         _unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
@@ -47,21 +48,21 @@ public class LoginCommandHandlerTests
     {
         using var cts = new CancellationTokenSource();
         var user = ExistingUser();
-        _users.Setup(r => r.GetUserByEmailAsync("ada@example.com", cts.Token)).ReturnsAsync(user);
+        _users.Setup(r => r.GetUserByEmailAsync(Email.Create("ada@example.com"), cts.Token)).ReturnsAsync(user);
         _passwords.Setup(p => p.Verify(It.IsAny<string>(), It.IsAny<string?>())).Returns(true);
         _jwt.Setup(j => j.GenerateToken(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
             .Returns("token");
 
         await _sut.HandleAsync(new LoginCommand("ada@example.com", "Passw0rd!"), cts.Token);
 
-        _users.Verify(r => r.GetUserByEmailAsync("ada@example.com", cts.Token), Times.Once);
+        _users.Verify(r => r.GetUserByEmailAsync(Email.Create("ada@example.com"), cts.Token), Times.Once);
     }
 
     [Fact]
     public async Task WhenEmailIsUnknown_StillChecksAPasswordSoTheAnswerTakesAsLong()
     {
         _users
-            .Setup(r => r.GetUserByEmailAsync("ada@example.com", It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetUserByEmailAsync(Email.Create("ada@example.com"), It.IsAny<CancellationToken>()))
             .ReturnsAsync((User?)null);
 
         var exception = await Assert.ThrowsAsync<InvalidCredentialsException>(() =>
@@ -79,7 +80,7 @@ public class LoginCommandHandlerTests
     {
         var user = ExistingUser();
         _users
-            .Setup(r => r.GetUserByEmailAsync("ada@example.com", It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetUserByEmailAsync(Email.Create("ada@example.com"), It.IsAny<CancellationToken>()))
             .ReturnsAsync(user);
         _passwords.Setup(p => p.Verify("wrong-password", user.PasswordHash)).Returns(false);
 
@@ -92,12 +93,10 @@ public class LoginCommandHandlerTests
             Times.Never);
     }
 
-    private static User ExistingUser() => new()
-    {
-        Id = Guid.Parse("018f6b2e-7c3a-7a1b-8c2d-4e5f60718293"),
-        FirstName = "Ada",
-        LastName = "Lovelace",
-        Email = "ada@example.com",
-        PasswordHash = "stored-hash",
-    };
+    private static User ExistingUser() => User.Register(
+        "Ada",
+        "Lovelace",
+        Email.Create("ada@example.com"),
+        "stored-hash",
+        new DateTime(2026, 11, 1, 9, 0, 0, DateTimeKind.Utc));
 }

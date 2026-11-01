@@ -1,5 +1,6 @@
 using GrocerEase.Application.Authentication;
 using GrocerEase.Domain.Entities;
+using GrocerEase.Domain.ValueObjects;
 
 namespace GrocerEase.UnitTests.Application;
 
@@ -8,14 +9,12 @@ public class AuthenticationResultTests
     [Fact]
     public void From_CopiesUserFieldsAndToken()
     {
-        var user = new User
-        {
-            Id = Guid.Parse("018f6b2e-7c3a-7a1b-8c2d-4e5f60718293"),
-            FirstName = "Ada",
-            LastName = "Lovelace",
-            Email = "ada@example.com",
-            PasswordHash = "hashed",
-        };
+        var user = User.Register(
+            "Ada",
+            "Lovelace",
+            Email.Create("Ada@Example.com"),
+            "hashed",
+            new DateTime(2026, 11, 1, 9, 0, 0, DateTimeKind.Utc));
 
         var result = AuthenticationResult.From(user, "signed-token");
 

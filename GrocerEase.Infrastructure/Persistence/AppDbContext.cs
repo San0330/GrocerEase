@@ -1,6 +1,6 @@
 using GrocerEase.Domain.Entities;
+using GrocerEase.Domain.ValueObjects;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace GrocerEase.Infrastructure.Persistence;
 
@@ -16,18 +16,14 @@ public class AppDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        // The application supplies the time (IDateTimeProvider), so there is one clock and it can be faked in tests.
         modelBuilder.Entity<User>()
             .Property(u => u.CreatedAt)
-            .HasDefaultValueSql("now()")
-            .ValueGeneratedOnAdd();
-
-        var emailConverter = new ValueConverter<string, string>(
-            v => v.ToLowerInvariant(),
-            v => v);
+            .ValueGeneratedNever();
 
         modelBuilder.Entity<User>()
             .Property(u => u.Email)
-            .HasConversion(emailConverter);
+            .HasConversion(email => email.Value, stored => Email.Create(stored));
 
         modelBuilder.Entity<User>()
             .HasIndex(u => u.Email)

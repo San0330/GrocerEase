@@ -10,5 +10,5 @@ public record AuthenticationResult(
     string Token)
 {
     public static AuthenticationResult From(User user, string token) =>
-        new(user.Id, user.FirstName, user.LastName, user.Email, token);
+        new(user.Id, user.FirstName, user.LastName, user.Email.Value, token);
 }
