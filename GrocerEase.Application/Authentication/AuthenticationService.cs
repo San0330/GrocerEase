@@ -66,7 +66,10 @@ public class AuthenticationService : IAuthenticationService
 
         var user = await _userRepository.GetUserByEmailAsync(command.Email.ToLowerInvariant(), cancellationToken);
 
-        if (user is null || !_passwordHasher.Verify(command.Password, user.PasswordHash))
+        // Verify even when there is no user, so a wrong email is not answered faster than a wrong password.
+        var passwordMatches = _passwordHasher.Verify(command.Password, user?.PasswordHash);
+
+        if (user is null || !passwordMatches)
         {
             throw new InvalidCredentialsException();
         }

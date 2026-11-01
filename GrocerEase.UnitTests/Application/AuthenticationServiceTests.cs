@@ -146,7 +146,7 @@ public class AuthenticationServiceTests
         using var cts = new CancellationTokenSource();
         var user = ExistingUser();
         _users.Setup(r => r.GetUserByEmailAsync("ada@example.com", cts.Token)).ReturnsAsync(user);
-        _passwords.Setup(p => p.Verify(It.IsAny<string>(), It.IsAny<string>())).Returns(true);
+        _passwords.Setup(p => p.Verify(It.IsAny<string>(), It.IsAny<string?>())).Returns(true);
         _jwt.Setup(j => j.GenerateToken(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
             .Returns("token");
 
@@ -156,7 +156,7 @@ public class AuthenticationServiceTests
     }
 
     [Fact]
-    public async Task LoginAsync_WhenEmailIsUnknown_RejectsWithoutCheckingAPassword()
+    public async Task LoginAsync_WhenEmailIsUnknown_StillChecksAPasswordSoTheAnswerTakesAsLong()
     {
         _users
             .Setup(r => r.GetUserByEmailAsync("ada@example.com", It.IsAny<CancellationToken>()))
@@ -166,7 +166,7 @@ public class AuthenticationServiceTests
             _sut.LoginAsync(new LoginCommand("Ada@Example.COM", "Passw0rd!")));
 
         Assert.Equal("Email or password is invalid.", exception.ErrorMessage);
-        _passwords.Verify(p => p.Verify(It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+        _passwords.Verify(p => p.Verify("Passw0rd!", null), Times.Once);
         _jwt.Verify(
             j => j.GenerateToken(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()),
             Times.Never);

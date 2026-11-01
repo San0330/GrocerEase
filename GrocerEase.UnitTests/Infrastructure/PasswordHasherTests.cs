@@ -22,6 +22,13 @@ public class PasswordHasherTests
     }
 
     [Fact]
+    public void Verify_WithNoStoredHash_ReturnsFalseForAnyPassword()
+    {
+        Assert.False(_hasher.Verify("Passw0rd!", null));
+        Assert.False(_hasher.Verify("", null));
+    }
+
+    [Fact]
     public void Hash_UsesADifferentSaltEachTime()
     {
         var first = _hasher.Hash("Passw0rd!");
