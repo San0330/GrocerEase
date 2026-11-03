@@ -59,6 +59,86 @@ _None right now._
 
 - [ ] **Token refresh** — No refresh token mechanism. Expired JWTs require re-login with no silent renewal path.
 
+## 🚀 Production readiness
+
+Assumes the planned features are complete. Found by checking the repo on 2026-11-03; **nothing here is implemented**. The order is a suggested one: **A** before any real traffic, **B** before a public launch or scaling out, **C** later. Items already tracked elsewhere in this file are listed at the end of the section, not repeated.
+
+### A. Before any real traffic
+
+**CI/CD**
+
+- [ ] **CI pipeline** — build, unit tests, and the Docker-backed integration tests on every PR and on `main`. Nothing runs the 169 unit and 39 integration tests automatically today; every check so far was run by hand.
+
+- [ ] **Container image pipeline** — build and push an image tagged by commit, scan it (Trivy or similar), and pin the base images by digest (`Dockerfile` uses the floating tags `sdk:10.0` and `aspnet:10.0`). Add a `HEALTHCHECK` to the image; it exists only in `docker-compose.yml`.
+
+- [ ] **A deploy target and environments** — compose is the only runtime. Choose a platform, then add staging and production with approvals, infrastructure as code, per-environment configuration, a secrets manager (today: `.env` and user secrets), TLS termination, and a rollback plan.
+
+- [ ] **Static analysis and build hygiene** — there is no `.editorconfig`, `global.json`, `Directory.Build.props`, analyzer set or warnings-as-errors. Pin the SDK, enable analyzers, add CodeQL, and publish coverage (`coverlet.collector` is referenced but never run).
+
+- [ ] **Dependency and secret scanning** — a NuGet scan on 2026-11-03 found no vulnerable or deprecated packages, but that was a one-off. Automate it (Dependabot or Renovate, `dotnet list package --vulnerable` in CI) and add secret scanning.
+
+**Observability**
+
+- [ ] **Structured logging and request logs** — only 4 log calls exist, all in `ErrorHandlingMiddleware`. The handlers log nothing, requests are not logged, and the output is the default console format. Add a structured (JSON) provider with the trace id on every line.
+
+- [ ] **Audit events for authentication** — log registration, login success and failure, and rate-limit rejections. A `429` or a failed login leaves no trace today. Never log the password or the token (note 33).
+
+- [ ] **Metrics and traces** — there is no OpenTelemetry. Add ASP.NET Core and EF Core/Npgsql instrumentation with an OTLP exporter: request rate, error rate, latency, DB pool use, BCrypt time. `traceId` is attached only to error responses.
+
+- [ ] **Alerts, SLOs and runbooks** — alert on the 5xx rate, p95 latency and `/health/ready`, and write a runbook for each alert.
+
+**Transport and configuration**
+
+- [ ] **HSTS, and stop serving plain HTTP** — there is no `UseHsts`, and `UseHttpsRedirection` alone does not protect the first request (note 24). Pair this with forwarded headers (tracked below).
+
+- [ ] **`AllowedHosts`** — it is `"*"` in `appsettings.json`. Restrict it to the real hostnames.
+
+- [ ] **Request body size limit** — none is set, so Kestrel's default (about 30 MB) applies to JSON endpoints that need a few hundred bytes.
+
+**Data**
+
+- [ ] **Backups and a tested restore** — the only store is a Docker volume. Use managed Postgres with point-in-time recovery, and rehearse a restore before relying on it.
+
+- [ ] **Database TLS and connection resilience** — the connection string has no `SSL Mode`, and `UseNpgsql` is configured with no retry (`EnableRetryOnFailure`), pool size or timeouts. Use `SSL Mode=VerifyFull` in production, and add retries with care for writes that are not idempotent.
+
+### B. Before a public launch or scaling out
+
+- [ ] **Account lifecycle** — password reset, email verification, per-account lockout (the rate limit is per address, not per email), and a decision on MFA.
+
+- [ ] **Token lifecycle** — beyond refresh tokens (tracked below): `ClockSkew` is not set, so a token lives 65 minutes, not 60. Tokens are HS256 with one shared secret, so there is no `kid`, key rotation or revocation. Consider asymmetric signing if another service validates them.
+
+- [ ] **Shared rate limiter** — it is in memory per instance, so two replicas allow twice the limit. Use a shared store, or enforce the limit at the gateway.
+
+- [ ] **API versioning** — routes are `/auth/register`, not `/v1/auth/register`. This is cheapest to add before any client exists.
+
+- [ ] **Security headers, and `Cache-Control: no-store` on auth responses** — none are set.
+
+- [ ] **Container limits** — compose sets no memory or CPU limits and no read-only root filesystem.
+
+- [ ] **Load and soak testing** — BCrypt at cost 11 is CPU-heavy per login and has never been measured under load. Size the replicas and the rate limit from the numbers.
+
+- [ ] **Graceful shutdown and probes** — check the host's shutdown timeout against the orchestrator's grace period, and add a startup probe if migrations ever run at boot.
+
+- [ ] **Publish the API documentation** — the OpenAPI document is served only in Development.
+
+- [ ] **Version stamping** — nothing exposes which build or commit is running.
+
+### C. Later
+
+- [ ] **Caching and pagination** — once list endpoints exist.
+
+- [ ] **A WAF or CDN** in front of the API.
+
+- [ ] **Privacy tooling** — names and emails are personal data: retention, deletion, export, and a rule for what may appear in logs.
+
+- [ ] **Resilience for outbound calls** — when email or payments arrive: timeouts, retries, and idempotency keys.
+
+- [ ] **Security and contract testing** — a DAST scan of a deployed instance, and contract tests against the OpenAPI document.
+
+### Already tracked elsewhere in this file
+
+These production items are open at the end of the file, under Done, and are not repeated here: CORS policy, token refresh, forwarded headers for the rate limiter, registration revealing which emails exist, migrations as a pipeline step, separating the migration role from the runtime role, authorization (roles and policies), the bearer token printing in `ToString()`, and the JSON naming policy in `ErrorKeys`.
+
 ---
 
 ## Done ✅
