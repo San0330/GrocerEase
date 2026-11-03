@@ -99,6 +99,7 @@ _None right now._
 - [x] `IAppException.Title` — an optional title override, so `DuplicateEmailException` no longer needs its own middleware arm
 - [x] `docker-compose.yml` secrets moved to a gitignored `.env` — `JWT_SECRET` and `POSTGRES_PASSWORD` are required (`${VAR:?message}`), `.env.example` is committed as the template, and `.dockerignore` keeps `.env` out of the image build context. Copy `.env.example` to `.env` before `docker compose up`
 - [x] Postgres published on loopback only — `docker-compose.yml` maps `127.0.0.1:5432:5432`, so the database that holds a superuser login is no longer reachable from other machines. The API still reaches it over the compose network, and tools on the host still connect to `localhost:5432`
+- [x] The API connects as a non-superuser role — `grocerease.db-init` (a one-shot compose service running `docker/postgres/init-app-role.sql`) creates `grocerease_app` on every `docker compose up`, sets its password from `APP_DB_PASSWORD`, and makes it the owner of `GrocerEaseDb` and its tables. The role can create the trusted `citext` extension as the database owner, so startup migrations still work. The `postgres` superuser stays for setup and administration; add `APP_DB_PASSWORD` to an existing `.env`
 - [x] Test projects added to `GrocerEase.slnx` — `GrocerEase.UnitTests` and `GrocerEase.IntegrationTests` now belong to the solution, so `dotnet test` from the root and IDE test discovery run both. The integration tests need Docker for the Postgres container; skip them with `dotnet test --filter "FullyQualifiedName!~IntegrationTests"`
 
 - [ ] **Forwarded headers for the rate limiter** — `/auth/*` is limited per socket address. Behind a proxy every client shares one budget until `UseForwardedHeaders` is configured with the proxy's address.
@@ -111,4 +112,4 @@ _None right now._
 
 - [ ] **Authorization** — there are no roles or policies, so nothing can be marked admin-only, and a `403` has no producer yet. Needed before the inventory dashboard.
 
-- [ ] **A least-privilege database role** — the API connects as the `postgres` superuser and migrates with the same identity. Use a limited role to run and a separate one to migrate; the migrations also need to be able to create `citext`.
+- [ ] **Separate the migration role from the runtime role** — the API now connects as `grocerease_app`, which is not a superuser, but that role owns the database and both runs and migrates, so a leaked credential can still drop tables. A runtime role limited to `SELECT`/`INSERT`/`UPDATE`/`DELETE`, plus a separate role that migrates, needs a second connection string for `ApplyMigrationsAsync`.

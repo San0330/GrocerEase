@@ -90,11 +90,13 @@ The launch profiles set `Database__MigrateOnStartup=true`, so the tables are cre
 ### With Docker
 
 ```bash
-cp .env.example .env     # then fill in JWT_SECRET and POSTGRES_PASSWORD
+cp .env.example .env     # then fill in JWT_SECRET, POSTGRES_PASSWORD and APP_DB_PASSWORD
 docker compose up --build
 ```
 
-The API is at `http://localhost:5000` and Postgres at `localhost:5432`. Postgres is published on the loopback interface only, so other machines on your network cannot reach it. Compose sets `Database__MigrateOnStartup=true`, so the API creates the tables on first start, and runs it in the `Production` environment as a non-root user, so the OpenAPI document is not served; run the API locally for that. `.env` is gitignored, and compose refuses to start if either value is missing.
+The API is at `http://localhost:5000` and Postgres at `localhost:5432`. Postgres is published on the loopback interface only, so other machines on your network cannot reach it. Compose sets `Database__MigrateOnStartup=true`, so the API creates the tables on first start, and runs it in the `Production` environment as a non-root user, so the OpenAPI document is not served; run the API locally for that. `.env` is gitignored, and compose refuses to start if a value is missing.
+
+The API does not connect as the `postgres` superuser. On every `up`, the one-shot `grocerease.db-init` service runs `docker/postgres/init-app-role.sql`, which creates the `grocerease_app` role (no superuser rights), gives it `APP_DB_PASSWORD`, and makes it the owner of `GrocerEaseDb`, including tables an older volume already holds. The API starts only after that succeeds. Use `postgres` with `POSTGRES_PASSWORD` for administration from a database tool.
 
 ## Tests
 
