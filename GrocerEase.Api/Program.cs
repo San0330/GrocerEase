@@ -8,8 +8,14 @@ using GrocerEase.Api.RateLimiting;
 using GrocerEase.Application;
 using GrocerEase.Infrastructure;
 using GrocerEase.Infrastructure.Persistence;
+using Microsoft.Extensions.Logging;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Puts the W3C trace id and span id on every log line written while a request is running, so the lines of one request
+// can be found together and matched to its trace.
+builder.Logging.Configure(options => options.ActivityTrackingOptions =
+    ActivityTrackingOptions.TraceId | ActivityTrackingOptions.SpanId | ActivityTrackingOptions.ParentId);
 
 builder.Services
     .AddApplication()
@@ -48,6 +54,9 @@ if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
+
+// First, so the status it logs is the one the client receives, including error bodies written by the middleware below.
+app.UseMiddleware<RequestLoggingMiddleware>();
 
 app.UseMiddleware<ErrorHandlingMiddleware>();
 
