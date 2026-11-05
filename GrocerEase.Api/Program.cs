@@ -1,5 +1,6 @@
 using GrocerEase.Api;
 using GrocerEase.Api.Authentication;
+using GrocerEase.Api.Cors;
 using GrocerEase.Api.Errors;
 using GrocerEase.Api.MiddleWare;
 using GrocerEase.Api.OpenApi;
@@ -13,6 +14,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services
     .AddApplication()
     .AddInfrastructure(builder.Configuration);
+
+builder.Services.AddFrontendCors(builder.Configuration);
 
 builder.Services.AddAuthRateLimiting(builder.Configuration);
 
@@ -52,6 +55,10 @@ app.UseMiddleware<ErrorHandlingMiddleware>();
 app.UseStatusCodePages(StatusCodeProblem.WriteAsync);
 
 app.UseHttpsRedirection();
+
+// Before the rate limiter and auth so a preflight is answered without a token or a rate-limit slot, and so 401 and
+// 429 responses still carry the CORS headers that let the frontend read them.
+app.UseCors(FrontendCors.PolicyName);
 
 app.UseRateLimiter();
 
