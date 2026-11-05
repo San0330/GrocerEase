@@ -38,6 +38,7 @@ public static class DependencyInjection
             .AddDbContextCheck<AppDbContext>("database", tags: [HealthCheckTags.Ready]);
 
         services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 
         return services;

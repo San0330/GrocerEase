@@ -7,12 +7,14 @@ namespace GrocerEase.Infrastructure.Persistence;
 public class AppDbContext : DbContext
 {
     public const string UserEmailIndex = "IX_Users_Email";
+    public const string RefreshTokenHashIndex = "IX_RefreshTokens_TokenHash";
 
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
     {
     }
 
     public DbSet<User> Users { get; set; } = null!;
+    public DbSet<RefreshToken> RefreshTokens { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -46,5 +48,31 @@ public class AppDbContext : DbContext
             .HasIndex(u => u.Email)
             .HasDatabaseName(UserEmailIndex)
             .IsUnique();
+
+        modelBuilder.Entity<RefreshToken>(token =>
+        {
+            token.Property(t => t.TokenHash).HasMaxLength(RefreshToken.TokenHashMaxLength);
+
+            // The application supplies the time, as for users.
+            token.Property(t => t.CreatedAt).ValueGeneratedNever();
+            token.Property(t => t.ExpiresAt).ValueGeneratedNever();
+            token.Property(t => t.RevokedAt).ValueGeneratedNever();
+
+            // A presented token is looked up by its hash, and no two rows may share one.
+            token.HasIndex(t => t.TokenHash)
+                .HasDatabaseName(RefreshTokenHashIndex)
+                .IsUnique();
+
+            // Revoking a family reads every row that shares the id.
+            token.HasIndex(t => t.FamilyId);
+
+            token.HasOne<User>()
+                .WithMany()
+                .HasForeignKey(t => t.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Postgres bumps xmin on every update, so two requests that rotate the same token cannot both succeed.
+            token.Property<uint>("xmin").IsRowVersion();
+        });
     }
 }

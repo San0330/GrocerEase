@@ -5,4 +5,5 @@ public static class ErrorCodes
 {
     public const string InvalidCredentials = "User.InvalidCredentials";
     public const string DuplicateEmail = "User.DuplicateEmail";
+    public const string InvalidRefreshToken = "Auth.InvalidRefreshToken";
 }
