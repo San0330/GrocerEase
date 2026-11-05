@@ -113,6 +113,60 @@ public sealed class RefreshTokenEndpointsTests(GrocerEaseApiFactory factory) : I
         Assert.True(problem.Errors.ContainsKey("refreshToken"));
     }
 
+    [Fact]
+    public async Task Logout_Returns204_AndTheTokenCanNoLongerBeRefreshed()
+    {
+        var registered = await RegisterAsync();
+
+        var response = await Client.PostAsJsonAsync("/auth/logout", new LogoutRequest(registered.RefreshToken));
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        await AssertInvalidRefreshTokenAsync(await PostRefreshAsync(registered.RefreshToken));
+    }
+
+    [Fact]
+    public async Task Logout_AfterARefresh_RevokesTheWholeFamily_SoTheNewestTokenStopsToo()
+    {
+        var registered = await RegisterAsync();
+        var rotated = await RefreshAsync(registered.RefreshToken, HttpStatusCode.OK);
+
+        var response = await Client.PostAsJsonAsync("/auth/logout", new LogoutRequest(rotated.RefreshToken));
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        await AssertInvalidRefreshTokenAsync(await PostRefreshAsync(rotated.RefreshToken));
+    }
+
+    [Fact]
+    public async Task Logout_LeavesTheUsersOtherSessionsAlone()
+    {
+        var email = UniqueEmail();
+        var registered = await RegisterAsync(email);
+        var otherSession = await ReadAsync<AuthenticationResponse>(
+            await Client.PostAsJsonAsync("/auth/login", new LoginRequest(email, "Passw0rd!")),
+            HttpStatusCode.OK);
+
+        await Client.PostAsJsonAsync("/auth/logout", new LogoutRequest(registered.RefreshToken));
+
+        await RefreshAsync(otherSession.RefreshToken, HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task Logout_WithAnUnknownToken_StillReturns204()
+    {
+        var response = await Client.PostAsJsonAsync("/auth/logout", new LogoutRequest("no-such-token"));
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Logout_WithABlankToken_IsAValidationFailure()
+    {
+        var response = await Client.PostAsJsonAsync("/auth/logout", new LogoutRequest(""));
+
+        var problem = await ReadAsync<ValidationErrorResponse>(response, HttpStatusCode.UnprocessableEntity);
+        Assert.True(problem.Errors.ContainsKey("refreshToken"));
+    }
+
     private async Task<AuthenticationResponse> RefreshAsync(string refreshToken, HttpStatusCode expected) =>
         await ReadAsync<AuthenticationResponse>(await PostRefreshAsync(refreshToken), expected);
 

@@ -14,11 +14,12 @@ public class AuthenticationControllerTests
     private readonly Mock<ICommandHandler<RegisterCommand, AuthenticationResult>> _register = new();
     private readonly Mock<ICommandHandler<LoginCommand, AuthenticationResult>> _login = new();
     private readonly Mock<ICommandHandler<RefreshTokenCommand, AuthenticationResult>> _refresh = new();
+    private readonly Mock<ICommandHandler<LogoutCommand, Unit>> _logout = new();
     private readonly AuthenticationController _controller;
 
     public AuthenticationControllerTests()
     {
-        _controller = new AuthenticationController(_register.Object, _login.Object, _refresh.Object);
+        _controller = new AuthenticationController(_register.Object, _login.Object, _refresh.Object, _logout.Object);
     }
 
     [Fact]
@@ -89,5 +90,19 @@ public class AuthenticationControllerTests
         Assert.Equal(id, body.Id);
         Assert.Equal("new-jwt", body.Token);
         Assert.Equal("new-refresh", body.RefreshToken);
+    }
+
+    [Fact]
+    public async Task Logout_ReturnsNoContent_AfterHandingTheTokenToTheHandler()
+    {
+        using var cts = new CancellationTokenSource();
+        _logout
+            .Setup(s => s.HandleAsync(It.Is<LogoutCommand>(c => c.RefreshToken == "some-refresh"), cts.Token))
+            .ReturnsAsync(Unit.Value);
+
+        var result = await _controller.Logout(new LogoutRequest("some-refresh"), cts.Token);
+
+        Assert.IsType<NoContentResult>(result);
+        _logout.VerifyAll();
     }
 }

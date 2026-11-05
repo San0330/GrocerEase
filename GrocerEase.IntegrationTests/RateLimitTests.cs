@@ -39,6 +39,7 @@ public sealed class RateLimitTests : IDisposable
     [InlineData("/auth/login")]
     [InlineData("/auth/register")]
     [InlineData("/auth/refresh")]
+    [InlineData("/auth/logout")]
     public async Task AuthEndpoint_AfterThePermitIsSpent_ReturnsTheRateLimitProblem(string path)
     {
         using var client = _factory.CreateClient();

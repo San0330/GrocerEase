@@ -17,6 +17,7 @@ public static class DependencyInjection
         services.AddCommandHandler<RegisterCommand, AuthenticationResult, RegisterCommandHandler>();
         services.AddCommandHandler<LoginCommand, AuthenticationResult, LoginCommandHandler>();
         services.AddCommandHandler<RefreshTokenCommand, AuthenticationResult, RefreshTokenCommandHandler>();
+        services.AddCommandHandler<LogoutCommand, Unit, LogoutCommandHandler>();
 
         return services;
     }

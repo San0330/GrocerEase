@@ -32,6 +32,8 @@ public class PasswordRedactionTests
     {
         new RefreshTokenCommand(Secret),
         new RefreshRequest(Secret),
+        new LogoutCommand(Secret),
+        new LogoutRequest(Secret),
     };
 
     [Theory]

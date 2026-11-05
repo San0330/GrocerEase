@@ -21,15 +21,18 @@ public class AuthenticationController : ControllerBase
     private readonly ICommandHandler<RegisterCommand, AuthenticationResult> _register;
     private readonly ICommandHandler<LoginCommand, AuthenticationResult> _login;
     private readonly ICommandHandler<RefreshTokenCommand, AuthenticationResult> _refresh;
+    private readonly ICommandHandler<LogoutCommand, Unit> _logout;
 
     public AuthenticationController(
         ICommandHandler<RegisterCommand, AuthenticationResult> register,
         ICommandHandler<LoginCommand, AuthenticationResult> login,
-        ICommandHandler<RefreshTokenCommand, AuthenticationResult> refresh)
+        ICommandHandler<RefreshTokenCommand, AuthenticationResult> refresh,
+        ICommandHandler<LogoutCommand, Unit> logout)
     {
         _register = register;
         _login = login;
         _refresh = refresh;
+        _logout = logout;
     }
 
     [HttpPost("register")]
@@ -79,6 +82,18 @@ public class AuthenticationController : ControllerBase
         var result = await _refresh.HandleAsync(new RefreshTokenCommand(request.RefreshToken), cancellationToken);
 
         return Ok(ToResponse(result));
+    }
+
+    /// <summary>Ends the session the refresh token belongs to. Answers 204 for any token, known or not.</summary>
+    [HttpPost("logout")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType<ErrorResponse>(StatusCodes.Status409Conflict, "application/problem+json")]
+    [ProducesResponseType<ValidationErrorResponse>(StatusCodes.Status400BadRequest, "application/problem+json")]
+    public async Task<IActionResult> Logout(LogoutRequest request, CancellationToken cancellationToken)
+    {
+        await _logout.HandleAsync(new LogoutCommand(request.RefreshToken), cancellationToken);
+
+        return NoContent();
     }
 
     private static AuthenticationResponse ToResponse(AuthenticationResult result) => new AuthenticationResponse(

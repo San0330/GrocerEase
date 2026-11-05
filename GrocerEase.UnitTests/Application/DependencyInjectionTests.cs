@@ -30,6 +30,9 @@ public class DependencyInjectionTests
 
         var refresh = Assert.Single(services, d => d.ServiceType == typeof(IValidator<RefreshTokenCommand>));
         Assert.Equal(typeof(RefreshTokenCommandValidator), refresh.ImplementationType);
+
+        var logout = Assert.Single(services, d => d.ServiceType == typeof(IValidator<LogoutCommand>));
+        Assert.Equal(typeof(LogoutCommandValidator), logout.ImplementationType);
     }
 
     [Fact]
@@ -43,6 +46,8 @@ public class DependencyInjectionTests
             provider.GetRequiredService<ICommandHandler<LoginCommand, AuthenticationResult>>());
         Assert.IsType<ValidatingCommandHandler<RefreshTokenCommand, AuthenticationResult>>(
             provider.GetRequiredService<ICommandHandler<RefreshTokenCommand, AuthenticationResult>>());
+        Assert.IsType<ValidatingCommandHandler<LogoutCommand, Unit>>(
+            provider.GetRequiredService<ICommandHandler<LogoutCommand, Unit>>());
     }
 
     [Fact]
