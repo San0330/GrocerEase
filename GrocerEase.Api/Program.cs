@@ -5,6 +5,7 @@ using GrocerEase.Api.Errors;
 using GrocerEase.Api.MiddleWare;
 using GrocerEase.Api.OpenApi;
 using GrocerEase.Api.RateLimiting;
+using GrocerEase.Api.Telemetry;
 using GrocerEase.Application;
 using GrocerEase.Infrastructure;
 using GrocerEase.Infrastructure.Persistence;
@@ -16,6 +17,8 @@ var builder = WebApplication.CreateBuilder(args);
 // can be found together and matched to its trace.
 builder.Logging.Configure(options => options.ActivityTrackingOptions =
     ActivityTrackingOptions.TraceId | ActivityTrackingOptions.SpanId | ActivityTrackingOptions.ParentId);
+
+builder.AddGrocerEaseTelemetry();
 
 builder.Services
     .AddApplication()
