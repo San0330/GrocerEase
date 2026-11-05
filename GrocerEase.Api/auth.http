@@ -24,3 +24,24 @@ Content-Type: application/json
 ### Profile
 GET {{baseUrl}}/profile
 Authorization: Bearer {{login.response.body.$.token}}
+
+### Refresh (replaces the refresh token, so run Login again before repeating it)
+# @name refresh
+POST {{baseUrl}}/auth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "{{login.response.body.$.refreshToken}}"
+}
+
+### Profile with the refreshed access token
+GET {{baseUrl}}/profile
+Authorization: Bearer {{refresh.response.body.$.token}}
+
+### Logout (ends the session of the newest refresh token)
+POST {{baseUrl}}/auth/logout
+Content-Type: application/json
+
+{
+  "refreshToken": "{{refresh.response.body.$.refreshToken}}"
+}

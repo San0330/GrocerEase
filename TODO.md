@@ -12,7 +12,7 @@ The architecture foundation is genuinely good. Most projects at this stage are a
 
 | State | Rating | Description |
 |---|---|---|
-| Right now | **8.0** | Auth is tested, and the service commits through `IUnitOfWork`. Token refresh remains |
+| Right now | **8.0** | Auth is tested, and the service commits through `IUnitOfWork`. Tokens refresh with rotation |
 | TODO list done | **8.5** | Production-ready auth service |
 | + Observability + more features | **9.0** | Proven at scale |
 | + DDD domain model + CI/CD | **9.5** | Senior-level codebase |
@@ -55,7 +55,9 @@ _None right now._
 
 ## 🟢 Minor
 
-- [ ] **Token refresh** — No refresh token mechanism. Expired JWTs require re-login with no silent renewal path.
+- [ ] **Delete expired and revoked refresh tokens** — rows stay in `RefreshTokens` forever. A periodic job could delete rows past `ExpiresAt`, keeping revoked ones for a while so reuse is still detected.
+
+- [ ] **Absolute session lifetime** — each refresh extends a session by another 30 days, so a session that is used often never ends. A `SessionExpiresAt` on the family would cap it.
 
 ## 🚀 Production readiness
 
@@ -103,7 +105,7 @@ Assumes the planned features are complete. Found by checking the repo on 2026-11
 
 - [ ] **Account lifecycle** — password reset, email verification, per-account lockout (the rate limit is per address, not per email), and a decision on MFA.
 
-- [ ] **Token lifecycle** — beyond refresh tokens (tracked below): `ClockSkew` is not set, so a token lives 65 minutes, not 60. Tokens are HS256 with one shared secret, so there is no `kid`, key rotation or revocation. Consider asymmetric signing if another service validates them.
+- [ ] **Token lifecycle** — refresh tokens are done and can be revoked. Access tokens cannot: one stays valid until it expires, even after logout. `ClockSkew` is not set, so a token lives 65 minutes, not 60. Tokens are HS256 with one shared secret, so there is no `kid` or key rotation. Consider asymmetric signing if another service validates them.
 
 - [ ] **Shared rate limiter** — it is in memory per instance, so two replicas allow twice the limit. Use a shared store, or enforce the limit at the gateway.
 
@@ -135,7 +137,7 @@ Assumes the planned features are complete. Found by checking the repo on 2026-11
 
 ### Already tracked elsewhere in this file
 
-These production items are open at the end of the file, under Done, and are not repeated here: token refresh, forwarded headers for the rate limiter, registration revealing which emails exist, migrations as a pipeline step, separating the migration role from the runtime role, authorization (roles and policies), and the JSON naming policy in `ErrorKeys`.
+These production items are open at the end of the file, under Done, and are not repeated here: forwarded headers for the rate limiter, registration revealing which emails exist, migrations as a pipeline step, separating the migration role from the runtime role, authorization (roles and policies), and the JSON naming policy in `ErrorKeys`.
 
 ---
 
@@ -181,6 +183,7 @@ These production items are open at the end of the file, under Done, and are not 
 - [x] The plaintext password no longer appears in `ToString()` — `RegisterCommand`, `LoginCommand`, `RegisterRequest` and `LoginRequest` are records, and a record prints every property, so logging or interpolating one would have written the caller's password out. Each overrides `PrintMembers` and prints `Password = [redacted]`; the other fields still print. `PasswordRedactionTests` checks the four types and also finds, by reflection, any type in Application or Contracts with a password-like property, so a future `ChangePasswordCommand` is covered. Nothing logged one before; this closes the latent path
 - [x] CORS policy for the browser frontend — `Cors:AllowedOrigins` (default `http://localhost:3000` in `appsettings.json`) feeds a `frontend` policy that allows any method and header and exposes `Retry-After`; credentials stay off because auth is a bearer token. `UseCors` runs before the rate limiter and auth, so a preflight needs no token and 401/429 responses stay readable by the frontend. A malformed origin (trailing slash, no scheme, a path) stops the host at startup. `CorsTests` covers it; other environments set `Cors__AllowedOrigins__0`
 - [x] The bearer token no longer appears in `ToString()` — `AuthenticationResult` and `AuthenticationResponse` override `PrintMembers` and print `Token = [redacted]`. `PasswordRedactionTests` now finds, by reflection, any type in Application or Contracts with a password-like or token-like string property, so the refresh token is covered as soon as it exists
+- [x] Refresh tokens with rotation and reuse detection — register and login return a `refreshToken` beside the JWT. `POST /auth/refresh` revokes it and returns a new pair; presenting a revoked token again revokes the whole family and returns `401 Auth.InvalidRefreshToken`. `POST /auth/logout` revokes the family and always returns `204`. Tokens are 256 random bits and only their SHA-256 hash is stored (`RefreshTokens`, unique on the hash, `xmin` as the row version so two simultaneous refreshes cannot both win: the loser gets `409 Database.ConcurrentUpdate`). Lifetime is `JwtSettings:RefreshTokenExpiryDays` (30). The token is redacted in `ToString()` everywhere it appears. Delivery is the JSON body, so CORS is unchanged
 - [x] Test projects added to `GrocerEase.slnx` — `GrocerEase.UnitTests` and `GrocerEase.IntegrationTests` now belong to the solution, so `dotnet test` from the root and IDE test discovery run both. The integration tests need Docker for the Postgres container; skip them with `dotnet test --filter "FullyQualifiedName!~IntegrationTests"`
 
 - [ ] **Forwarded headers for the rate limiter** — `/auth/*` is limited per socket address. Behind a proxy every client shares one budget until `UseForwardedHeaders` is configured with the proxy's address.

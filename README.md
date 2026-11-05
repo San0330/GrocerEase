@@ -20,8 +20,10 @@ Only the backend's authentication slice exists so far. There are no products, ca
 
 | Endpoint | Auth | Purpose |
 |---|---|---|
-| `POST /auth/register` | public | Create a user and return a JWT with `201`. Duplicate email returns `409`, validation failures return `422` |
-| `POST /auth/login` | public | Verify credentials and return a JWT. Wrong credentials return `401` |
+| `POST /auth/register` | public | Create a user and return a JWT and a refresh token with `201`. Duplicate email returns `409`, validation failures return `422` |
+| `POST /auth/login` | public | Verify credentials and return a JWT and a refresh token. Wrong credentials return `401` |
+| `POST /auth/refresh` | public | Trade a refresh token for a new JWT and a new refresh token. The old refresh token stops working. An unknown, expired or already used token returns `401` |
+| `POST /auth/logout` | public | Revoke the session the refresh token belongs to and return `204`. Any token, known or not, gets `204` |
 | `GET /profile` | bearer token | Return the caller's id and email |
 | `GET /health/live` | public | `200 Healthy` while the process answers. Runs no checks |
 | `GET /health/ready` | public | `200 Healthy`, or `503 Unhealthy` when the database cannot be reached. Compose uses it as the API's healthcheck |
@@ -36,19 +38,23 @@ Errors are returned as `application/problem+json`. Clients should branch on `cod
 | `400` | `Database.ConstraintViolation` | A database constraint other than the unique email failed (register) | `detail` |
 | `401` | `Auth.Unauthorized` | A protected endpoint such as `/profile` was called without a bearer token, or with one that is expired, tampered with, or issued for another audience. `WWW-Authenticate` is `Bearer`, or `Bearer error="invalid_token"` when a token was sent | `detail` |
 | `401` | `User.InvalidCredentials` | Wrong email or password | `detail` |
+| `401` | `Auth.InvalidRefreshToken` | `/auth/refresh` was given a refresh token that is unknown, expired, or already used. One message covers all three. Presenting a used token also revokes every token from the same login | `detail` |
 | `404` | `Request.NotFound` | No such route | `detail` |
 | `405` | `Request.MethodNotAllowed` | The route exists but not for this method. `Allow` lists the methods that work | `detail` |
 | `409` | `User.DuplicateEmail` | The email is already registered | `detail` |
+| `409` | `Database.ConcurrentUpdate` | Two requests changed the same row at once, such as two `/auth/refresh` calls with the same token. One succeeds; retry the other with the newest token | `detail` |
 | `415` | `Request.UnsupportedMediaType` | The body is not sent as `application/json` | `detail` |
 | `422` | `Validation.Failed` | The body was read but a value broke a rule, such as an empty string or a weak password | `errors` keyed by the JSON field name (`email`, `firstName`), as the client sent it |
-| `429` | `RateLimit.Exceeded` | `/auth/register` or `/auth/login` was called more than the limit allows from one client address. The `Retry-After` header says how many seconds to wait | `detail` |
+| `429` | `RateLimit.Exceeded` | An `/auth/*` endpoint was called more than the limit allows from one client address. The `Retry-After` header says how many seconds to wait | `detail` |
 | `500` | `Server.Unexpected` | Anything else | `detail` |
 
 A missing property is `400` while a present but empty one is `422`. This split comes from how ASP.NET Core model binding treats non-nullable properties as required, not from a rule in the HTTP standards. Many APIs use a single status for both.
 
 **Framework responses.** A route that does not exist, a wrong method, a body that is not JSON, and a bare `401` or `403` all answer in the same shape, because a status-code handler gives them a body. The `code` is `Request.NotFound`, `Request.MethodNotAllowed`, `Request.UnsupportedMediaType`, `Auth.Forbidden`, or `Request.Rejected` for any other `4xx`. Every error is `application/problem+json` (RFC 9457) with `code` and `traceId` as extension members.
 
-**Rate limit.** `/auth/register` and `/auth/login` share one budget per client address, 10 requests per 60 seconds by default, because each attempt costs a BCrypt hash. Change it with `RateLimiting:Auth:PermitLimit` and `RateLimiting:Auth:WindowSeconds`. The address is the socket's, so behind a reverse proxy every client looks like the proxy until forwarded headers are configured.
+**Refresh tokens.** The JWT lasts 60 minutes (`JwtSettings:ExpiryMinutes`). Register and login also return a `refreshToken`, valid for 30 days (`JwtSettings:RefreshTokenExpiryDays`). Send it to `POST /auth/refresh` as `{ "refreshToken": "..." }` for a new pair; every refresh replaces the token, so always keep the newest one. If a token that was already replaced is presented again, the API assumes it was copied and revokes every token from that login, so the user must log in again. Each login is its own session, and `POST /auth/logout` ends one without touching the others. The database stores only a hash of each token. Keep the token where page script cannot leak it, and make one refresh call at a time: a second call with the same token at the same moment gets `409`.
+
+**Rate limit.** `/auth/register`, `/auth/login`, `/auth/refresh` and `/auth/logout` share one budget per client address, 10 requests per 60 seconds by default, because each attempt costs a BCrypt hash. Change it with `RateLimiting:Auth:PermitLimit` and `RateLimiting:Auth:WindowSeconds`. The address is the socket's, so behind a reverse proxy every client looks like the proxy until forwarded headers are configured.
 
 **CORS.** A browser frontend may call the API from the origins in `Cors:AllowedOrigins`, which defaults to `http://localhost:3000`. Any method and header is allowed, and `Retry-After` is exposed so the frontend can back off after a `429`. Cookies are not allowed, since authentication is a bearer token. Another environment sets its own list with `Cors__AllowedOrigins__0`, `Cors__AllowedOrigins__1` and so on. Each entry is scheme, host and optional port with no trailing slash (`https://app.example.com`); anything else stops the host at startup.
 
