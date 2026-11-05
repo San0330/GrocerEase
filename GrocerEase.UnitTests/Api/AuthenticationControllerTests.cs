@@ -33,7 +33,7 @@ public class AuthenticationControllerTests
                     c.Email == "Ada@Example.COM" &&
                     c.Password == "Passw0rd!"),
                 cts.Token))
-            .ReturnsAsync(new AuthenticationResult(id, "Ada", "Lovelace", "ada@example.com", "signed-token"));
+            .ReturnsAsync(new AuthenticationResult(id, "Ada", "Lovelace", "ada@example.com", "signed-token", "refresh-token"));
 
         var result = await _controller.Register(
             new RegisterRequest("Ada", "Lovelace", "Ada@Example.COM", "Passw0rd!"),
@@ -47,6 +47,7 @@ public class AuthenticationControllerTests
         Assert.Equal("Lovelace", body.LastName);
         Assert.Equal("ada@example.com", body.Email);
         Assert.Equal("signed-token", body.Token);
+        Assert.Equal("refresh-token", body.RefreshToken);
     }
 
     [Fact]
@@ -58,7 +59,7 @@ public class AuthenticationControllerTests
             .Setup(s => s.HandleAsync(
                 It.Is<LoginCommand>(c => c.Email == "ada@example.com" && c.Password == "Passw0rd!"),
                 cts.Token))
-            .ReturnsAsync(new AuthenticationResult(id, "Ada", "Lovelace", "ada@example.com", "signed-token"));
+            .ReturnsAsync(new AuthenticationResult(id, "Ada", "Lovelace", "ada@example.com", "signed-token", "refresh-token"));
 
         var result = await _controller.Login(
             new LoginRequest("ada@example.com", "Passw0rd!"),
@@ -68,5 +69,6 @@ public class AuthenticationControllerTests
         var body = Assert.IsType<AuthenticationResponse>(ok.Value);
         Assert.Equal(id, body.Id);
         Assert.Equal("signed-token", body.Token);
+        Assert.Equal("refresh-token", body.RefreshToken);
     }
 }

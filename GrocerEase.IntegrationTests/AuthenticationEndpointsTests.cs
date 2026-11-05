@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using GrocerEase.Contracts.Authentication;
+using GrocerEase.Application.Common.Interfaces.Authentication;
 using GrocerEase.Application.Common.Interfaces.Persistence;
 using GrocerEase.Api.Errors;
 using GrocerEase.Contracts.Errors;
@@ -27,6 +28,8 @@ public sealed class AuthenticationEndpointsTests(GrocerEaseApiFactory factory) :
         Assert.Equal("Ada", registered.FirstName);
         Assert.Equal("Lovelace", registered.LastName);
         Assert.False(string.IsNullOrWhiteSpace(registered.Token));
+        Assert.False(string.IsNullOrWhiteSpace(registered.RefreshToken));
+        Assert.NotEqual(registered.Token, registered.RefreshToken);
 
         await using var scope = Factory.Services.CreateAsyncScope();
         var database = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -108,6 +111,31 @@ public sealed class AuthenticationEndpointsTests(GrocerEaseApiFactory factory) :
         Assert.Equal(registered.Id, loggedIn.Id);
         Assert.Equal(email.ToLowerInvariant(), loggedIn.Email);
         Assert.False(string.IsNullOrWhiteSpace(loggedIn.Token));
+        Assert.False(string.IsNullOrWhiteSpace(loggedIn.RefreshToken));
+        Assert.NotEqual(registered.RefreshToken, loggedIn.RefreshToken);
+    }
+
+    [Fact]
+    public async Task RefreshTokens_AreStoredAsAHash_OneFamilyPerRegistrationAndLogin()
+    {
+        var email = UniqueEmail();
+        var registered = await RegisterAsync(email);
+        var loggedIn = await ReadAsync<AuthenticationResponse>(
+            await Client.PostAsJsonAsync("/auth/login", new LoginRequest(email, "Passw0rd!")),
+            HttpStatusCode.OK);
+
+        await using var scope = Factory.Services.CreateAsyncScope();
+        var database = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var stored = await database.RefreshTokens.Where(t => t.UserId == registered.Id).ToListAsync();
+
+        Assert.Equal(2, stored.Count);
+        Assert.Equal(2, stored.Select(t => t.FamilyId).Distinct().Count());
+        Assert.All(stored, t => Assert.False(t.IsRevoked));
+        // The database holds neither token, only their hashes.
+        Assert.DoesNotContain(stored, t => t.TokenHash == registered.RefreshToken || t.TokenHash == loggedIn.RefreshToken);
+        var generator = scope.ServiceProvider.GetRequiredService<IRefreshTokenGenerator>();
+        Assert.Contains(stored, t => t.TokenHash == generator.Hash(registered.RefreshToken));
+        Assert.Contains(stored, t => t.TokenHash == generator.Hash(loggedIn.RefreshToken));
     }
 
     [Fact]

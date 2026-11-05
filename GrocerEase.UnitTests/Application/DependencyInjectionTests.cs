@@ -74,6 +74,8 @@ public class DependencyInjectionTests
         services.AddSingleton((users ?? new Mock<IUserRepository>()).Object);
         services.AddSingleton(Mock.Of<IUnitOfWork>());
         services.AddSingleton(Mock.Of<IDateTimeProvider>());
+        services.AddSingleton(Mock.Of<IRefreshTokenGenerator>());
+        services.AddSingleton(Mock.Of<IRefreshTokenRepository>());
         return services.BuildServiceProvider();
     }
 }

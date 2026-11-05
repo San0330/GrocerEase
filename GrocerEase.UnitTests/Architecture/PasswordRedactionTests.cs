@@ -24,8 +24,8 @@ public class PasswordRedactionTests
 
     public static TheoryData<object> RecordsThatCarryAToken => new()
     {
-        new AuthenticationResult(Guid.NewGuid(), "Ada", "Lovelace", "ada@example.com", Secret),
-        new AuthenticationResponse(Guid.NewGuid(), "Ada", "Lovelace", "ada@example.com", Secret),
+        new AuthenticationResult(Guid.NewGuid(), "Ada", "Lovelace", "ada@example.com", Secret, Secret),
+        new AuthenticationResponse(Guid.NewGuid(), "Ada", "Lovelace", "ada@example.com", Secret, Secret),
     };
 
     [Theory]
@@ -49,6 +49,7 @@ public class PasswordRedactionTests
 
         Assert.DoesNotContain(Secret, text);
         Assert.Contains("Token = [redacted]", text);
+        Assert.Contains("RefreshToken = [redacted]", text);
         Assert.Contains("ada@example.com", text);
         Assert.StartsWith(value.GetType().Name, text);
     }

@@ -8,15 +8,16 @@ public record AuthenticationResult(
     string FirstName,
     string LastName,
     string Email,
-    string Token)
+    string Token,
+    string RefreshToken)
 {
-    public static AuthenticationResult From(User user, string token) =>
-        new(user.Id, user.FirstName, user.LastName, user.Email.Value, token);
+    public static AuthenticationResult From(User user, string token, string refreshToken) =>
+        new(user.Id, user.FirstName, user.LastName, user.Email.Value, token, refreshToken);
 
-    // A bearer token is a credential until it expires, and a record's generated ToString would print it.
+    // A bearer token and a refresh token are credentials until it expires, and a record's generated ToString would print it.
     protected virtual bool PrintMembers(StringBuilder builder)
     {
-        builder.Append($"Id = {Id}, FirstName = {FirstName}, LastName = {LastName}, Email = {Email}, Token = [redacted]");
+        builder.Append($"Id = {Id}, FirstName = {FirstName}, LastName = {LastName}, Email = {Email}, Token = [redacted], RefreshToken = [redacted]");
         return true;
     }
 }

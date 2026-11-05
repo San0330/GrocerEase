@@ -5,6 +5,7 @@ using GrocerEase.Application.Common.Interfaces.Persistence;
 using GrocerEase.Domain.Entities;
 using GrocerEase.Domain.Exceptions;
 using GrocerEase.Domain.ValueObjects;
+using GrocerEase.UnitTests.Support;
 using Moq;
 
 namespace GrocerEase.UnitTests.Application;
@@ -14,11 +15,28 @@ public class LoginCommandHandlerTests
     private readonly Mock<IJwtTokenGenerator> _jwt = new();
     private readonly Mock<IPasswordHasher> _passwords = new();
     private readonly Mock<IUserRepository> _users = new();
+    private readonly Mock<IRefreshTokenGenerator> _refreshTokens = new();
+    private readonly Mock<IRefreshTokenRepository> _refreshTokenStore = new();
+    private readonly Mock<IUnitOfWork> _unitOfWork = new();
+    private static readonly DateTime Now = new(2026, 11, 5, 9, 30, 0, DateTimeKind.Utc);
+    private static readonly IssuedRefreshToken Issued = new("raw-refresh-token", "refresh-hash", Now.AddDays(30));
     private readonly LoginCommandHandler _sut;
 
     public LoginCommandHandlerTests()
     {
-        _sut = new LoginCommandHandler(_jwt.Object, _passwords.Object, _users.Object);
+        _refreshTokens.Setup(g => g.Issue()).Returns(Issued);
+        _unitOfWork
+            .Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        _sut = new LoginCommandHandler(
+            _jwt.Object,
+            _passwords.Object,
+            _users.Object,
+            _refreshTokens.Object,
+            _refreshTokenStore.Object,
+            _unitOfWork.Object,
+            new FixedDateTimeProvider(Now));
     }
 
     [Fact]
@@ -42,6 +60,45 @@ public class LoginCommandHandlerTests
     }
 
     [Fact]
+    public async Task WithMatchingPassword_ReturnsTheRefreshTokenAndStoresOnlyItsHashInANewFamily()
+    {
+        var user = ExistingUser();
+        RefreshToken? stored = null;
+        GivenLoginSucceeds(user);
+        _refreshTokenStore
+            .Setup(r => r.AddAsync(It.IsAny<RefreshToken>(), It.IsAny<CancellationToken>()))
+            .Callback<RefreshToken, CancellationToken>((token, _) => stored = token)
+            .Returns(Task.CompletedTask);
+
+        var result = await _sut.HandleAsync(new LoginCommand("ada@example.com", "Passw0rd!"));
+
+        Assert.Equal("raw-refresh-token", result.RefreshToken);
+        Assert.NotNull(stored);
+        Assert.Equal(user.Id, stored.UserId);
+        Assert.Equal("refresh-hash", stored.TokenHash);
+        Assert.Equal(Now, stored.CreatedAt);
+        Assert.Equal(Now.AddDays(30), stored.ExpiresAt);
+        Assert.False(stored.IsRevoked);
+        _unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task EachLogin_StartsItsOwnFamily()
+    {
+        var families = new List<Guid>();
+        GivenLoginSucceeds(ExistingUser());
+        _refreshTokenStore
+            .Setup(r => r.AddAsync(It.IsAny<RefreshToken>(), It.IsAny<CancellationToken>()))
+            .Callback<RefreshToken, CancellationToken>((token, _) => families.Add(token.FamilyId))
+            .Returns(Task.CompletedTask);
+
+        await _sut.HandleAsync(new LoginCommand("ada@example.com", "Passw0rd!"));
+        await _sut.HandleAsync(new LoginCommand("ada@example.com", "Passw0rd!"));
+
+        Assert.Equal(2, families.Distinct().Count());
+    }
+
+    [Fact]
     public async Task ForwardsCancellationTokenToTheRepository()
     {
         using var cts = new CancellationTokenSource();
@@ -54,6 +111,8 @@ public class LoginCommandHandlerTests
         await _sut.HandleAsync(new LoginCommand("ada@example.com", "Passw0rd!"), cts.Token);
 
         _users.Verify(r => r.GetUserByEmailAsync(Email.Create("ada@example.com"), cts.Token), Times.Once);
+        _refreshTokenStore.Verify(r => r.AddAsync(It.IsAny<RefreshToken>(), cts.Token), Times.Once);
+        _unitOfWork.Verify(u => u.SaveChangesAsync(cts.Token), Times.Once);
     }
 
     [Fact]
@@ -68,6 +127,7 @@ public class LoginCommandHandlerTests
 
         Assert.Equal("Email or password is invalid.", exception.ErrorMessage);
         _passwords.Verify(p => p.Verify("Passw0rd!", null), Times.Once);
+        AssertNothingIssuedOrSaved();
         _jwt.Verify(
             j => j.GenerateToken(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()),
             Times.Never);
@@ -89,6 +149,25 @@ public class LoginCommandHandlerTests
         _jwt.Verify(
             j => j.GenerateToken(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()),
             Times.Never);
+        AssertNothingIssuedOrSaved();
+    }
+
+    private void GivenLoginSucceeds(User user)
+    {
+        _users
+            .Setup(r => r.GetUserByEmailAsync(Email.Create("ada@example.com"), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(user);
+        _passwords.Setup(p => p.Verify("Passw0rd!", user.PasswordHash)).Returns(true);
+        _jwt
+            .Setup(j => j.GenerateToken(user.Id, user.FirstName, user.LastName, user.Email.Value))
+            .Returns("signed-token");
+    }
+
+    private void AssertNothingIssuedOrSaved()
+    {
+        _refreshTokens.Verify(g => g.Issue(), Times.Never);
+        _refreshTokenStore.Verify(r => r.AddAsync(It.IsAny<RefreshToken>(), It.IsAny<CancellationToken>()), Times.Never);
+        _unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
     }
 
     private static User ExistingUser() => User.Register(

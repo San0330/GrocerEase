@@ -51,7 +51,8 @@ public class AuthenticationController : ControllerBase
             result.FirstName,
             result.LastName,
             result.Email,
-            result.Token));
+            result.Token,
+            result.RefreshToken));
     }
 
     [HttpPost("login")]
@@ -71,6 +72,7 @@ public class AuthenticationController : ControllerBase
             result.FirstName,
             result.LastName,
             result.Email,
-            result.Token));
+            result.Token,
+            result.RefreshToken));
     }
 }

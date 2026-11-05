@@ -7,12 +7,13 @@ public record AuthenticationResponse(
     string FirstName,
     string LastName,
     string Email,
-    string Token)
+    string Token,
+    string RefreshToken)
 {
-    // See AuthenticationResult: a record's generated ToString would print the bearer token.
+    // See AuthenticationResult: a record's generated ToString would print both tokens.
     protected virtual bool PrintMembers(StringBuilder builder)
     {
-        builder.Append($"Id = {Id}, FirstName = {FirstName}, LastName = {LastName}, Email = {Email}, Token = [redacted]");
+        builder.Append($"Id = {Id}, FirstName = {FirstName}, LastName = {LastName}, Email = {Email}, Token = [redacted], RefreshToken = [redacted]");
         return true;
     }
 }
