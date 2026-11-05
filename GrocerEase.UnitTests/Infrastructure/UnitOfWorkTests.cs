@@ -44,6 +44,17 @@ public class UnitOfWorkTests
     }
 
     [Fact]
+    public async Task SaveChangesAsync_WhenARowWasChangedByAnotherRequest_ThrowsConcurrentUpdate()
+    {
+        var failure = new DbUpdateConcurrencyException("row changed");
+
+        var thrown = await Assert.ThrowsAsync<ConcurrentUpdateException>(() =>
+            new UnitOfWork(new FailingContext(failure)).SaveChangesAsync());
+
+        Assert.Same(failure, thrown.InnerException);
+    }
+
+    [Fact]
     public async Task SaveChangesAsync_WhenTheFailureIsNotFromPostgres_RethrowsTheOriginal()
     {
         await Assert.ThrowsAsync<DbUpdateException>(() => SaveFailingWith(new TimeoutException()));

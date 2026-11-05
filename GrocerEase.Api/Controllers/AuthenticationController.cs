@@ -20,13 +20,16 @@ public class AuthenticationController : ControllerBase
 {
     private readonly ICommandHandler<RegisterCommand, AuthenticationResult> _register;
     private readonly ICommandHandler<LoginCommand, AuthenticationResult> _login;
+    private readonly ICommandHandler<RefreshTokenCommand, AuthenticationResult> _refresh;
 
     public AuthenticationController(
         ICommandHandler<RegisterCommand, AuthenticationResult> register,
-        ICommandHandler<LoginCommand, AuthenticationResult> login)
+        ICommandHandler<LoginCommand, AuthenticationResult> login,
+        ICommandHandler<RefreshTokenCommand, AuthenticationResult> refresh)
     {
         _register = register;
         _login = login;
+        _refresh = refresh;
     }
 
     [HttpPost("register")]
@@ -46,13 +49,7 @@ public class AuthenticationController : ControllerBase
         var result = await _register.HandleAsync(command, cancellationToken);
 
         // 201 without a Location header: the user has no address of its own to point at yet.
-        return StatusCode(StatusCodes.Status201Created, new AuthenticationResponse(
-            result.Id,
-            result.FirstName,
-            result.LastName,
-            result.Email,
-            result.Token,
-            result.RefreshToken));
+        return StatusCode(StatusCodes.Status201Created, ToResponse(result));
     }
 
     [HttpPost("login")]
@@ -67,12 +64,28 @@ public class AuthenticationController : ControllerBase
 
         var result = await _login.HandleAsync(command, cancellationToken);
 
-        return Ok(new AuthenticationResponse(
+        return Ok(ToResponse(result));
+    }
+
+    /// <summary>Trades a refresh token for a new access token and a new refresh token. The old refresh token stops working.</summary>
+    [HttpPost("refresh")]
+    [ProducesResponseType<AuthenticationResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ErrorResponse>(StatusCodes.Status401Unauthorized, "application/problem+json")]
+    // Two requests presenting the same token at once: one succeeds and the other is told to try again.
+    [ProducesResponseType<ErrorResponse>(StatusCodes.Status409Conflict, "application/problem+json")]
+    [ProducesResponseType<ValidationErrorResponse>(StatusCodes.Status400BadRequest, "application/problem+json")]
+    public async Task<IActionResult> Refresh(RefreshRequest request, CancellationToken cancellationToken)
+    {
+        var result = await _refresh.HandleAsync(new RefreshTokenCommand(request.RefreshToken), cancellationToken);
+
+        return Ok(ToResponse(result));
+    }
+
+    private static AuthenticationResponse ToResponse(AuthenticationResult result) => new AuthenticationResponse(
             result.Id,
             result.FirstName,
             result.LastName,
             result.Email,
             result.Token,
-            result.RefreshToken));
-    }
+            result.RefreshToken);
 }

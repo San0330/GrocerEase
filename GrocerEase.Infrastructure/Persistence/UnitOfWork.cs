@@ -21,6 +21,12 @@ public sealed class UnitOfWork : IUnitOfWork
         {
             await _context.SaveChangesAsync(cancellationToken);
         }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            // A row this request read was changed by another request before it saved, as when two requests present
+            // the same refresh token at once. Matched before the general case, which it derives from.
+            throw new ConcurrentUpdateException(ex);
+        }
         catch (DbUpdateException ex) when (ex.InnerException is PostgresException
                                            {
                                                SqlState: PostgresErrorCodes.UniqueViolation,

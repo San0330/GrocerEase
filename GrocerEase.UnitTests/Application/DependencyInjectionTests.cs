@@ -27,6 +27,9 @@ public class DependencyInjectionTests
 
         var login = Assert.Single(services, d => d.ServiceType == typeof(IValidator<LoginCommand>));
         Assert.Equal(typeof(LoginCommandValidator), login.ImplementationType);
+
+        var refresh = Assert.Single(services, d => d.ServiceType == typeof(IValidator<RefreshTokenCommand>));
+        Assert.Equal(typeof(RefreshTokenCommandValidator), refresh.ImplementationType);
     }
 
     [Fact]
@@ -38,6 +41,8 @@ public class DependencyInjectionTests
             provider.GetRequiredService<ICommandHandler<RegisterCommand, AuthenticationResult>>());
         Assert.IsType<ValidatingCommandHandler<LoginCommand, AuthenticationResult>>(
             provider.GetRequiredService<ICommandHandler<LoginCommand, AuthenticationResult>>());
+        Assert.IsType<ValidatingCommandHandler<RefreshTokenCommand, AuthenticationResult>>(
+            provider.GetRequiredService<ICommandHandler<RefreshTokenCommand, AuthenticationResult>>());
     }
 
     [Fact]

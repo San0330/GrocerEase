@@ -28,6 +28,12 @@ public class PasswordRedactionTests
         new AuthenticationResponse(Guid.NewGuid(), "Ada", "Lovelace", "ada@example.com", Secret, Secret),
     };
 
+    public static TheoryData<object> RecordsThatCarryOnlyARefreshToken => new()
+    {
+        new RefreshTokenCommand(Secret),
+        new RefreshRequest(Secret),
+    };
+
     [Theory]
     [MemberData(nameof(RecordsThatCarryAPassword))]
     public void ToString_LeavesThePasswordOut_AndKeepsTheRest(object value)
@@ -51,6 +57,17 @@ public class PasswordRedactionTests
         Assert.Contains("Token = [redacted]", text);
         Assert.Contains("RefreshToken = [redacted]", text);
         Assert.Contains("ada@example.com", text);
+        Assert.StartsWith(value.GetType().Name, text);
+    }
+
+    [Theory]
+    [MemberData(nameof(RecordsThatCarryOnlyARefreshToken))]
+    public void ToString_LeavesTheRefreshTokenOut(object value)
+    {
+        var text = value.ToString()!;
+
+        Assert.DoesNotContain(Secret, text);
+        Assert.Contains("RefreshToken = [redacted]", text);
         Assert.StartsWith(value.GetType().Name, text);
     }
 
