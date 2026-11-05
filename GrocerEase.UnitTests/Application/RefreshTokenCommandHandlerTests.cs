@@ -12,7 +12,7 @@ using Moq;
 
 namespace GrocerEase.UnitTests.Application;
 
-public class RefreshTokenCommandHandlerTests
+public sealed class RefreshTokenCommandHandlerTests : IDisposable
 {
     private static readonly DateTime Issued = new(2026, 11, 5, 9, 0, 0, DateTimeKind.Utc);
     private static readonly DateTime Now = Issued.AddDays(1);
@@ -24,6 +24,7 @@ public class RefreshTokenCommandHandlerTests
     private readonly Mock<IUserRepository> _users = new();
     private readonly Mock<IUnitOfWork> _unitOfWork = new();
     private readonly FakeLogger<RefreshTokenCommandHandler> _log = new();
+    private readonly TestMetrics _metrics = new();
     private readonly User _user = User.Register("Ada", "Lovelace", Email.Create("ada@example.com"), "stored-hash", Issued);
     private readonly RefreshTokenCommandHandler _sut;
 
@@ -42,8 +43,11 @@ public class RefreshTokenCommandHandlerTests
             _users.Object,
             _unitOfWork.Object,
             new FixedDateTimeProvider(Now),
-            _log);
+            _log,
+            _metrics.Metrics);
     }
+
+    public void Dispose() => _metrics.Dispose();
 
     [Fact]
     public async Task WithAnActiveToken_ReturnsANewPairAndRotatesTheOldTokenOut()
@@ -243,6 +247,63 @@ public class RefreshTokenCommandHandlerTests
             Assert.DoesNotContain("next-hash", everything);
             Assert.DoesNotContain("new-jwt", everything);
         }
+    }
+
+    [Fact]
+    public async Task WithAnActiveToken_CountsASuccessfulRefresh()
+    {
+        var attempts = _metrics.Count("grocerease.auth.attempts");
+        var reuse = _metrics.Count("grocerease.auth.refresh_token_reuse");
+        GivenStoredToken();
+
+        await _sut.HandleAsync(new RefreshTokenCommand("presented"));
+
+        Assert.Equal(["refresh/success"], TestMetrics.Attempts(attempts));
+        Assert.Empty(reuse.GetMeasurementSnapshot());
+    }
+
+    [Fact]
+    public async Task WhenARefreshIsRejected_CountsAFailureWhateverTheReason()
+    {
+        var attempts = _metrics.Count("grocerease.auth.attempts");
+        var reuse = _metrics.Count("grocerease.auth.refresh_token_reuse");
+        _tokens.Setup(r => r.GetByHashAsync("presented-hash", It.IsAny<CancellationToken>())).ReturnsAsync((RefreshToken?)null);
+
+        await Assert.ThrowsAsync<InvalidRefreshTokenException>(() => _sut.HandleAsync(new RefreshTokenCommand("presented")));
+
+        Assert.Equal(["refresh/failure"], TestMetrics.Attempts(attempts));
+        Assert.Empty(reuse.GetMeasurementSnapshot());
+    }
+
+    [Fact]
+    public async Task WhenAnExpiredTokenOrAMissingUserIsRejected_BothCountAsFailures()
+    {
+        var attempts = _metrics.Count("grocerease.auth.attempts");
+        var expired = RefreshToken.StartFamily(_user.Id, "presented-hash", Issued, Issued.AddHours(12));
+        _tokens.Setup(r => r.GetByHashAsync("presented-hash", It.IsAny<CancellationToken>())).ReturnsAsync(expired);
+        await Assert.ThrowsAsync<InvalidRefreshTokenException>(() => _sut.HandleAsync(new RefreshTokenCommand("presented")));
+
+        GivenStoredToken();
+        _users.Setup(u => u.GetByIdAsync(_user.Id, It.IsAny<CancellationToken>())).ReturnsAsync((User?)null);
+        await Assert.ThrowsAsync<InvalidRefreshTokenException>(() => _sut.HandleAsync(new RefreshTokenCommand("presented")));
+
+        Assert.Equal(["refresh/failure", "refresh/failure"], TestMetrics.Attempts(attempts));
+    }
+
+    [Fact]
+    public async Task WhenARevokedTokenIsPresentedAgain_CountsTheReuseAndAFailedRefresh()
+    {
+        var attempts = _metrics.Count("grocerease.auth.attempts");
+        var reuse = _metrics.Count("grocerease.auth.refresh_token_reuse");
+        var old = RefreshToken.StartFamily(_user.Id, "presented-hash", Issued, Issued.AddDays(30));
+        old.Revoke(Issued.AddHours(1));
+        _tokens.Setup(r => r.GetByHashAsync("presented-hash", It.IsAny<CancellationToken>())).ReturnsAsync(old);
+        _tokens.Setup(r => r.GetFamilyAsync(old.FamilyId, It.IsAny<CancellationToken>())).ReturnsAsync([old]);
+
+        await Assert.ThrowsAsync<InvalidRefreshTokenException>(() => _sut.HandleAsync(new RefreshTokenCommand("presented")));
+
+        Assert.Equal(1, Assert.Single(reuse.GetMeasurementSnapshot()).Value);
+        Assert.Equal(["refresh/failure"], TestMetrics.Attempts(attempts));
     }
 
     private void AssertRejectedFor(string reason)

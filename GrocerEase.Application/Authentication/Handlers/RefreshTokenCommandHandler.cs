@@ -3,6 +3,7 @@ using GrocerEase.Application.Common.Handlers;
 using GrocerEase.Application.Common.Interfaces.Authentication;
 using GrocerEase.Application.Common.Interfaces.Persistence;
 using GrocerEase.Application.Common.Interfaces.Services;
+using GrocerEase.Application.Common.Telemetry;
 using GrocerEase.Domain.Exceptions;
 using Microsoft.Extensions.Logging;
 
@@ -17,6 +18,7 @@ public sealed class RefreshTokenCommandHandler : ICommandHandler<RefreshTokenCom
     private readonly IUnitOfWork _unitOfWork;
     private readonly IDateTimeProvider _clock;
     private readonly ILogger<RefreshTokenCommandHandler> _logger;
+    private readonly GrocerEaseMetrics _metrics;
 
     public RefreshTokenCommandHandler(
         IJwtTokenGenerator jwtTokenGenerator,
@@ -25,7 +27,8 @@ public sealed class RefreshTokenCommandHandler : ICommandHandler<RefreshTokenCom
         IUserRepository userRepository,
         IUnitOfWork unitOfWork,
         IDateTimeProvider clock,
-        ILogger<RefreshTokenCommandHandler> logger)
+        ILogger<RefreshTokenCommandHandler> logger,
+        GrocerEaseMetrics metrics)
     {
         _jwtTokenGenerator = jwtTokenGenerator;
         _refreshTokenGenerator = refreshTokenGenerator;
@@ -34,6 +37,7 @@ public sealed class RefreshTokenCommandHandler : ICommandHandler<RefreshTokenCom
         _unitOfWork = unitOfWork;
         _clock = clock;
         _logger = logger;
+        _metrics = metrics;
     }
 
     public async Task<AuthenticationResult> HandleAsync(RefreshTokenCommand command, CancellationToken cancellationToken = default)
@@ -43,6 +47,7 @@ public sealed class RefreshTokenCommandHandler : ICommandHandler<RefreshTokenCom
         if (presented is null)
         {
             _logger.RefreshRejected(AuthenticationLog.Reasons.UnknownToken);
+            _metrics.AuthAttempt(GrocerEaseMetrics.Operations.Refresh, succeeded: false);
             throw new InvalidRefreshTokenException();
         }
 
@@ -54,12 +59,15 @@ public sealed class RefreshTokenCommandHandler : ICommandHandler<RefreshTokenCom
             // The owner and the holder of the copy cannot be told apart, so the whole family goes.
             var revoked = await RevokeFamilyAsync(presented.FamilyId, now);
             _logger.RefreshTokenReuseDetected(presented.UserId, presented.FamilyId, revoked);
+            _metrics.RefreshTokenReused();
+            _metrics.AuthAttempt(GrocerEaseMetrics.Operations.Refresh, succeeded: false);
             throw new InvalidRefreshTokenException();
         }
 
         if (presented.IsExpired(now))
         {
             _logger.RefreshRejected(AuthenticationLog.Reasons.ExpiredToken);
+            _metrics.AuthAttempt(GrocerEaseMetrics.Operations.Refresh, succeeded: false);
             throw new InvalidRefreshTokenException();
         }
 
@@ -67,6 +75,7 @@ public sealed class RefreshTokenCommandHandler : ICommandHandler<RefreshTokenCom
         if (user is null)
         {
             _logger.RefreshRejected(AuthenticationLog.Reasons.UserMissing);
+            _metrics.AuthAttempt(GrocerEaseMetrics.Operations.Refresh, succeeded: false);
             throw new InvalidRefreshTokenException();
         }
 
@@ -78,6 +87,7 @@ public sealed class RefreshTokenCommandHandler : ICommandHandler<RefreshTokenCom
         var token = _jwtTokenGenerator.GenerateToken(user.Id, user.FirstName, user.LastName, user.Email.Value);
 
         _logger.TokenRefreshed(user.Id, presented.FamilyId);
+        _metrics.AuthAttempt(GrocerEaseMetrics.Operations.Refresh, succeeded: true);
 
         return AuthenticationResult.From(user, token, refresh.Token);
     }

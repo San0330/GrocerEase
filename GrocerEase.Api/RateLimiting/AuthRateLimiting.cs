@@ -1,5 +1,6 @@
 using System.Threading.RateLimiting;
 using GrocerEase.Api.Errors;
+using GrocerEase.Application.Common.Telemetry;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
 
@@ -61,6 +62,8 @@ public static partial class AuthRateLimiting
             .RateLimitRejected(
                 context.HttpContext.Request.Path.Value ?? string.Empty,
                 context.HttpContext.Connection.RemoteIpAddress?.ToString() ?? UnknownClient);
+
+        context.HttpContext.RequestServices.GetRequiredService<GrocerEaseMetrics>().RateLimitRejected();
 
         await ApiProblem.WriteAsync(
             context.HttpContext,

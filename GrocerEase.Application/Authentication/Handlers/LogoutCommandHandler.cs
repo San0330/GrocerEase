@@ -3,6 +3,7 @@ using GrocerEase.Application.Common.Handlers;
 using GrocerEase.Application.Common.Interfaces.Authentication;
 using GrocerEase.Application.Common.Interfaces.Persistence;
 using GrocerEase.Application.Common.Interfaces.Services;
+using GrocerEase.Application.Common.Telemetry;
 using Microsoft.Extensions.Logging;
 
 namespace GrocerEase.Application.Authentication.Handlers;
@@ -14,19 +15,22 @@ public sealed class LogoutCommandHandler : ICommandHandler<LogoutCommand, Unit>
     private readonly IUnitOfWork _unitOfWork;
     private readonly IDateTimeProvider _clock;
     private readonly ILogger<LogoutCommandHandler> _logger;
+    private readonly GrocerEaseMetrics _metrics;
 
     public LogoutCommandHandler(
         IRefreshTokenGenerator refreshTokenGenerator,
         IRefreshTokenRepository refreshTokenRepository,
         IUnitOfWork unitOfWork,
         IDateTimeProvider clock,
-        ILogger<LogoutCommandHandler> logger)
+        ILogger<LogoutCommandHandler> logger,
+        GrocerEaseMetrics metrics)
     {
         _refreshTokenGenerator = refreshTokenGenerator;
         _refreshTokenRepository = refreshTokenRepository;
         _unitOfWork = unitOfWork;
         _clock = clock;
         _logger = logger;
+        _metrics = metrics;
     }
 
     public async Task<Unit> HandleAsync(LogoutCommand command, CancellationToken cancellationToken = default)
@@ -38,6 +42,7 @@ public sealed class LogoutCommandHandler : ICommandHandler<LogoutCommand, Unit>
         // which tokens exist.
         if (presented is null)
         {
+            _metrics.AuthAttempt(GrocerEaseMetrics.Operations.Logout, succeeded: true);
             return Unit.Value;
         }
 
@@ -51,6 +56,7 @@ public sealed class LogoutCommandHandler : ICommandHandler<LogoutCommand, Unit>
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LoggedOut(presented.UserId, presented.FamilyId);
+        _metrics.AuthAttempt(GrocerEaseMetrics.Operations.Logout, succeeded: true);
 
         return Unit.Value;
     }

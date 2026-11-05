@@ -1,4 +1,5 @@
 using System.Reflection;
+using GrocerEase.Application.Common.Telemetry;
 using OpenTelemetry;
 using OpenTelemetry.Logs;
 using OpenTelemetry.Metrics;
@@ -34,7 +35,8 @@ public static class TelemetryExtensions
                     options.Filter = context => !context.Request.Path.StartsWithSegments("/health")))
             .WithMetrics(metrics => metrics
                 .AddAspNetCoreInstrumentation()
-                .AddRuntimeInstrumentation());
+                .AddRuntimeInstrumentation()
+                .AddMeter(GrocerEaseMetrics.MeterName));
 
         if (exporting)
         {

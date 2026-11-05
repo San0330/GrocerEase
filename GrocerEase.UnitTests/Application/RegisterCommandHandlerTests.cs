@@ -13,7 +13,7 @@ using Moq;
 
 namespace GrocerEase.UnitTests.Application;
 
-public class RegisterCommandHandlerTests
+public sealed class RegisterCommandHandlerTests : IDisposable
 {
     private readonly Mock<IJwtTokenGenerator> _jwt = new();
     private readonly Mock<IPasswordHasher> _passwords = new();
@@ -22,6 +22,7 @@ public class RegisterCommandHandlerTests
     private readonly Mock<IRefreshTokenGenerator> _refreshTokens = new();
     private readonly Mock<IRefreshTokenRepository> _refreshTokenStore = new();
     private readonly FakeLogger<RegisterCommandHandler> _log = new();
+    private readonly TestMetrics _metrics = new();
     private static readonly DateTime Now = new(2026, 11, 1, 9, 30, 0, DateTimeKind.Utc);
     private static readonly IssuedRefreshToken Issued = new("raw-refresh-token", "refresh-hash", Now.AddDays(30));
 
@@ -43,8 +44,11 @@ public class RegisterCommandHandlerTests
             new FixedDateTimeProvider(Now),
             _refreshTokens.Object,
             _refreshTokenStore.Object,
-            _log);
+            _log,
+            _metrics.Metrics);
     }
+
+    public void Dispose() => _metrics.Dispose();
 
     [Fact]
     public async Task WithValidCommand_StoresLowercasedEmailAndHashedPassword()
@@ -209,6 +213,31 @@ public class RegisterCommandHandlerTests
         var everything = record.Message + string.Join(' ', record.StructuredState!.Select(pair => pair.Value));
         Assert.DoesNotContain("ada@example.com", everything, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("Passw0rd!", everything);
+    }
+
+    [Fact]
+    public async Task WithValidCommand_CountsASuccessfulRegistration()
+    {
+        var attempts = _metrics.Count("grocerease.auth.attempts");
+        _passwords.Setup(p => p.Hash(It.IsAny<string>())).Returns("hashed");
+        _jwt.Setup(j => j.GenerateToken(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>())).Returns("token");
+
+        await _sut.HandleAsync(ValidRegister());
+
+        Assert.Equal(["register/success"], TestMetrics.Attempts(attempts));
+    }
+
+    [Fact]
+    public async Task WhenTheEmailIsAlreadyRegistered_CountsAFailedRegistration()
+    {
+        var attempts = _metrics.Count("grocerease.auth.attempts");
+        _users
+            .Setup(r => r.GetUserByEmailAsync(Email.Create("ada@example.com"), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ExistingUser());
+
+        await Assert.ThrowsAsync<DuplicateEmailException>(() => _sut.HandleAsync(ValidRegister()));
+
+        Assert.Equal(["register/failure"], TestMetrics.Attempts(attempts));
     }
 
     private static RegisterCommand ValidRegister() =>

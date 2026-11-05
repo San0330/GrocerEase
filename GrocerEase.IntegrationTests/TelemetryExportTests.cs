@@ -4,16 +4,17 @@ using System.Net.Http.Json;
 using GrocerEase.Contracts.Authentication;
 using Microsoft.Extensions.DependencyInjection;
 using OpenTelemetry;
+using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
 
 namespace GrocerEase.IntegrationTests;
 
-/// <summary>What one request looks like as a trace, against a real Postgres.</summary>
-public sealed class TracingTests : IClassFixture<TracingTests.TracedApiFactory>
+/// <summary>What one request looks like as a trace and as metrics, against a real Postgres.</summary>
+public sealed class TelemetryExportTests : IClassFixture<TelemetryExportTests.TracedApiFactory>
 {
     private readonly TracedApiFactory _factory;
 
-    public TracingTests(TracedApiFactory factory) => _factory = factory;
+    public TelemetryExportTests(TracedApiFactory factory) => _factory = factory;
 
     [Fact]
     public async Task ARegistration_IsOneTrace_WithTheDatabaseCallsAsChildrenOfTheRequest()
@@ -46,6 +47,46 @@ public sealed class TracingTests : IClassFixture<TracingTests.TracedApiFactory>
         var server = await WaitForServerSpanAsync("auth/login");
         Assert.Equal("POST auth/login", server.DisplayName);
         Assert.DoesNotContain(server.TagObjects, tag => tag.Value?.ToString()?.Contains("Passw0rd!") == true);
+    }
+
+    [Fact]
+    public async Task AFailedLogin_ShowsUpInTheExportedMetrics_AndBCryptIsTimed()
+    {
+        using var client = _factory.CreateClient();
+        var email = $"{Guid.NewGuid():N}@example.com";
+        await client.PostAsJsonAsync("/auth/register", new RegisterRequest("Ada", "Lovelace", email, "Passw0rd!"));
+        await client.PostAsJsonAsync("/auth/login", new LoginRequest(email, "wrong-password"));
+
+        _factory.Services.GetRequiredService<MeterProvider>().ForceFlush();
+        var metrics = _factory.Metrics();
+
+        Assert.Contains("login/failure", AttemptCounts(metrics).Keys);
+        Assert.Contains("register/success", AttemptCounts(metrics).Keys);
+        Assert.Contains(metrics, metric => metric.Name == "grocerease.password.hash.duration" && metric.Unit == "s");
+        // The framework's own request metrics arrive through the same pipeline.
+        Assert.Contains(metrics, metric => metric.Name == "http.server.request.duration");
+    }
+
+    // The attempt counter's value for each "operation/outcome" pair seen so far.
+    private static Dictionary<string, long> AttemptCounts(Metric[] metrics)
+    {
+        var counts = new Dictionary<string, long>();
+        foreach (var metric in metrics.Where(m => m.Name == "grocerease.auth.attempts"))
+        {
+            foreach (ref readonly var point in metric.GetMetricPoints())
+            {
+                string? operation = null, outcome = null;
+                foreach (var tag in point.Tags)
+                {
+                    if (tag.Key == "operation") operation = tag.Value?.ToString();
+                    if (tag.Key == "outcome") outcome = tag.Value?.ToString();
+                }
+
+                counts[$"{operation}/{outcome}"] = point.GetSumLong();
+            }
+        }
+
+        return counts;
     }
 
     private async Task<Activity> WaitForServerSpanAsync(string route)
@@ -82,6 +123,9 @@ public sealed class TracingTests : IClassFixture<TracingTests.TracedApiFactory>
     public sealed class TracedApiFactory : GrocerEaseApiFactory
     {
         private readonly List<Activity> _spans = [];
+        private readonly List<Metric> _metrics = [];
+
+        public Metric[] Metrics() => _metrics.ToArray();
 
         public Activity[] Spans()
         {
@@ -102,7 +146,10 @@ public sealed class TracingTests : IClassFixture<TracingTests.TracedApiFactory>
         {
             base.ConfigureWebHost(builder);
             builder.ConfigureServices(services =>
-                services.ConfigureOpenTelemetryTracerProvider((_, tracing) => tracing.AddInMemoryExporter(_spans)));
+            {
+                services.ConfigureOpenTelemetryTracerProvider((_, tracing) => tracing.AddInMemoryExporter(_spans));
+                services.ConfigureOpenTelemetryMeterProvider((_, metrics) => metrics.AddInMemoryExporter(_metrics));
+            });
         }
     }
 }

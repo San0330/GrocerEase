@@ -3,6 +3,7 @@ using GrocerEase.Application.Common.Handlers;
 using GrocerEase.Application.Common.Interfaces.Authentication;
 using GrocerEase.Application.Common.Interfaces.Persistence;
 using GrocerEase.Application.Common.Interfaces.Services;
+using GrocerEase.Application.Common.Telemetry;
 using GrocerEase.Domain.Entities;
 using GrocerEase.Domain.Exceptions;
 using GrocerEase.Domain.ValueObjects;
@@ -20,6 +21,7 @@ public sealed class LoginCommandHandler : ICommandHandler<LoginCommand, Authenti
     private readonly IUnitOfWork _unitOfWork;
     private readonly IDateTimeProvider _clock;
     private readonly ILogger<LoginCommandHandler> _logger;
+    private readonly GrocerEaseMetrics _metrics;
 
     public LoginCommandHandler(
         IJwtTokenGenerator jwtTokenGenerator,
@@ -29,7 +31,8 @@ public sealed class LoginCommandHandler : ICommandHandler<LoginCommand, Authenti
         IRefreshTokenRepository refreshTokenRepository,
         IUnitOfWork unitOfWork,
         IDateTimeProvider clock,
-        ILogger<LoginCommandHandler> logger)
+        ILogger<LoginCommandHandler> logger,
+        GrocerEaseMetrics metrics)
     {
         _jwtTokenGenerator = jwtTokenGenerator;
         _passwordHasher = passwordHasher;
@@ -39,6 +42,7 @@ public sealed class LoginCommandHandler : ICommandHandler<LoginCommand, Authenti
         _unitOfWork = unitOfWork;
         _clock = clock;
         _logger = logger;
+        _metrics = metrics;
     }
 
     public async Task<AuthenticationResult> HandleAsync(LoginCommand command, CancellationToken cancellationToken = default)
@@ -54,6 +58,7 @@ public sealed class LoginCommandHandler : ICommandHandler<LoginCommand, Authenti
             _logger.LoginFailed(
                 user is null ? AuthenticationLog.Reasons.UnknownEmail : AuthenticationLog.Reasons.WrongPassword,
                 EmailFingerprint.Of(command.Email));
+            _metrics.AuthAttempt(GrocerEaseMetrics.Operations.Login, succeeded: false);
             throw new InvalidCredentialsException();
         }
 
@@ -67,6 +72,7 @@ public sealed class LoginCommandHandler : ICommandHandler<LoginCommand, Authenti
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LoginSucceeded(user.Id);
+        _metrics.AuthAttempt(GrocerEaseMetrics.Operations.Login, succeeded: true);
 
         return AuthenticationResult.From(user, token, refresh.Token);
     }

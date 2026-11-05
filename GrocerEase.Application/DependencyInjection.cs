@@ -4,6 +4,7 @@ using GrocerEase.Application.Authentication.Commands;
 using GrocerEase.Application.Authentication.Handlers;
 using GrocerEase.Application.Authentication.Validators;
 using GrocerEase.Application.Common.Handlers;
+using GrocerEase.Application.Common.Telemetry;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace GrocerEase.Application;
@@ -13,6 +14,9 @@ public static class DependencyInjection
     public static IServiceCollection AddApplication(this IServiceCollection services)
     {
         services.AddValidatorsFromAssemblyContaining<RegisterCommandValidator>();
+
+        // One instance for the process: it owns the meter, and the host's meter factory disposes it.
+        services.AddSingleton<GrocerEaseMetrics>();
 
         services.AddCommandHandler<RegisterCommand, AuthenticationResult, RegisterCommandHandler>();
         services.AddCommandHandler<LoginCommand, AuthenticationResult, LoginCommandHandler>();

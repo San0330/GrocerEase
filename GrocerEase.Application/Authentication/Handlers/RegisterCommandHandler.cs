@@ -3,6 +3,7 @@ using GrocerEase.Application.Common.Handlers;
 using GrocerEase.Application.Common.Interfaces.Authentication;
 using GrocerEase.Application.Common.Interfaces.Persistence;
 using GrocerEase.Application.Common.Interfaces.Services;
+using GrocerEase.Application.Common.Telemetry;
 using GrocerEase.Domain.Entities;
 using GrocerEase.Domain.Exceptions;
 using GrocerEase.Domain.ValueObjects;
@@ -20,6 +21,7 @@ public sealed class RegisterCommandHandler : ICommandHandler<RegisterCommand, Au
     private readonly IRefreshTokenGenerator _refreshTokenGenerator;
     private readonly IRefreshTokenRepository _refreshTokenRepository;
     private readonly ILogger<RegisterCommandHandler> _logger;
+    private readonly GrocerEaseMetrics _metrics;
 
     public RegisterCommandHandler(
         IJwtTokenGenerator jwtTokenGenerator,
@@ -29,7 +31,8 @@ public sealed class RegisterCommandHandler : ICommandHandler<RegisterCommand, Au
         IDateTimeProvider clock,
         IRefreshTokenGenerator refreshTokenGenerator,
         IRefreshTokenRepository refreshTokenRepository,
-        ILogger<RegisterCommandHandler> logger)
+        ILogger<RegisterCommandHandler> logger,
+        GrocerEaseMetrics metrics)
     {
         _jwtTokenGenerator = jwtTokenGenerator;
         _passwordHasher = passwordHasher;
@@ -39,6 +42,7 @@ public sealed class RegisterCommandHandler : ICommandHandler<RegisterCommand, Au
         _refreshTokenGenerator = refreshTokenGenerator;
         _refreshTokenRepository = refreshTokenRepository;
         _logger = logger;
+        _metrics = metrics;
     }
 
     public async Task<AuthenticationResult> HandleAsync(RegisterCommand command, CancellationToken cancellationToken = default)
@@ -48,6 +52,7 @@ public sealed class RegisterCommandHandler : ICommandHandler<RegisterCommand, Au
         if (existing is not null)
         {
             _logger.RegistrationRejected(EmailFingerprint.Of(command.Email));
+            _metrics.AuthAttempt(GrocerEaseMetrics.Operations.Register, succeeded: false);
             throw new DuplicateEmailException();
         }
 
@@ -70,6 +75,7 @@ public sealed class RegisterCommandHandler : ICommandHandler<RegisterCommand, Au
 
         // After the save: the event says the user exists, so a registration that fails to store must not claim it.
         _logger.UserRegistered(user.Id);
+        _metrics.AuthAttempt(GrocerEaseMetrics.Operations.Register, succeeded: true);
 
         var token = _jwtTokenGenerator.GenerateToken(user.Id, user.FirstName, user.LastName, user.Email.Value);
 

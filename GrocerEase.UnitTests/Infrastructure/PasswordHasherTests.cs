@@ -1,13 +1,19 @@
 using GrocerEase.Infrastructure.Authentication;
+using GrocerEase.UnitTests.Support;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
 namespace GrocerEase.UnitTests.Infrastructure;
 
-public class PasswordHasherTests
+public sealed class PasswordHasherTests : IDisposable
 {
-    private readonly PasswordHasher _hasher = Hasher(4);
+    private readonly TestMetrics _metrics = new();
+    private readonly PasswordHasher _hasher;
+
+    public PasswordHasherTests() => _hasher = Hasher(4);
+
+    public void Dispose() => _metrics.Dispose();
 
     [Fact]
     public void Hash_ProducesAValueThatVerifiesOnlyForTheSamePassword()
@@ -73,8 +79,43 @@ public class PasswordHasherTests
         Assert.Contains(nameof(PasswordHashingSettings.Cost), exception.Message);
     }
 
-    private static PasswordHasher Hasher(int cost) =>
-        new(Options.Create(new PasswordHashingSettings { Cost = cost }));
+    [Fact]
+    public void Hash_AndVerify_RecordHowLongEachTook()
+    {
+        var duration = _metrics.Measure("grocerease.password.hash.duration");
+
+        var hash = _hasher.Hash("Passw0rd!");
+        _hasher.Verify("Passw0rd!", hash);
+
+        var measurements = duration.GetMeasurementSnapshot();
+        Assert.Equal(["hash", "verify"], measurements.Select(m => m.Tags["operation"]));
+        Assert.All(measurements, m => Assert.True(m.Value > 0, "a BCrypt call takes measurable time"));
+    }
+
+    [Fact]
+    public void Verify_WithNoStoredHash_StillRecordsTheStandInCheck_SoTheTimingCannotRevealAMissingUser()
+    {
+        var duration = _metrics.Measure("grocerease.password.hash.duration");
+
+        _hasher.Verify("Passw0rd!", null);
+
+        Assert.Equal("verify", Assert.Single(duration.GetMeasurementSnapshot()).Tags["operation"]);
+    }
+
+    [Fact]
+    public void TheDurationTagsNeverHoldThePassword()
+    {
+        var duration = _metrics.Measure("grocerease.password.hash.duration");
+
+        _hasher.Hash("Passw0rd!");
+
+        var tags = Assert.Single(duration.GetMeasurementSnapshot()).Tags;
+        Assert.DoesNotContain(tags.Values, value => value?.ToString()?.Contains("Passw0rd!") == true);
+        Assert.Equal(["operation"], tags.Keys);
+    }
+
+    private PasswordHasher Hasher(int cost) =>
+        new(Options.Create(new PasswordHashingSettings { Cost = cost }), _metrics.Metrics);
 
     private static PasswordHashingSettings Bind(IEnumerable<KeyValuePair<string, string?>> values)
     {

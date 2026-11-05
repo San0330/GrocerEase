@@ -13,7 +13,7 @@ using Moq;
 
 namespace GrocerEase.UnitTests.Application;
 
-public class LoginCommandHandlerTests
+public sealed class LoginCommandHandlerTests : IDisposable
 {
     private readonly Mock<IJwtTokenGenerator> _jwt = new();
     private readonly Mock<IPasswordHasher> _passwords = new();
@@ -22,6 +22,7 @@ public class LoginCommandHandlerTests
     private readonly Mock<IRefreshTokenRepository> _refreshTokenStore = new();
     private readonly Mock<IUnitOfWork> _unitOfWork = new();
     private readonly FakeLogger<LoginCommandHandler> _log = new();
+    private readonly TestMetrics _metrics = new();
     private static readonly DateTime Now = new(2026, 11, 5, 9, 30, 0, DateTimeKind.Utc);
     private static readonly IssuedRefreshToken Issued = new("raw-refresh-token", "refresh-hash", Now.AddDays(30));
     private readonly LoginCommandHandler _sut;
@@ -41,8 +42,11 @@ public class LoginCommandHandlerTests
             _refreshTokenStore.Object,
             _unitOfWork.Object,
             new FixedDateTimeProvider(Now),
-            _log);
+            _log,
+            _metrics.Metrics);
     }
+
+    public void Dispose() => _metrics.Dispose();
 
     [Fact]
     public async Task WithMatchingPassword_ReturnsTokenForThatUser()
@@ -205,6 +209,33 @@ public class LoginCommandHandlerTests
         Assert.Equal(1004, record.Id.Id);
         Assert.Equal("wrong_password", State(record, "Reason"));
         AssertNothingSensitiveWasLogged(record, "wrong-password");
+    }
+
+    [Fact]
+    public async Task WhenLoginSucceeds_CountsASuccessfulLogin()
+    {
+        var attempts = _metrics.Count("grocerease.auth.attempts");
+        GivenLoginSucceeds(ExistingUser());
+
+        await _sut.HandleAsync(new LoginCommand("ada@example.com", "Passw0rd!"));
+
+        Assert.Equal(["login/success"], TestMetrics.Attempts(attempts));
+    }
+
+    [Fact]
+    public async Task WhenLoginFails_CountsAFailedLoginForBothReasons()
+    {
+        var attempts = _metrics.Count("grocerease.auth.attempts");
+        var user = ExistingUser();
+        _users.Setup(r => r.GetUserByEmailAsync(Email.Create("ada@example.com"), It.IsAny<CancellationToken>())).ReturnsAsync(user);
+        _users.Setup(r => r.GetUserByEmailAsync(Email.Create("who@example.com"), It.IsAny<CancellationToken>())).ReturnsAsync((User?)null);
+        _passwords.Setup(p => p.Verify("wrong-password", user.PasswordHash)).Returns(false);
+
+        await Assert.ThrowsAsync<InvalidCredentialsException>(() => _sut.HandleAsync(new LoginCommand("ada@example.com", "wrong-password")));
+        await Assert.ThrowsAsync<InvalidCredentialsException>(() => _sut.HandleAsync(new LoginCommand("who@example.com", "wrong-password")));
+
+        // The metric does not split by reason, so a dashboard cannot be used to tell which emails exist.
+        Assert.Equal(["login/failure", "login/failure"], TestMetrics.Attempts(attempts));
     }
 
     private static string? State(FakeLogRecord record, string key) =>

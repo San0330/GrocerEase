@@ -1,3 +1,4 @@
+using System.Diagnostics.Metrics;
 using System.Net;
 using System.Net.Http.Json;
 using GrocerEase.Api.Errors;
@@ -8,6 +9,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Diagnostics.Metrics.Testing;
 using Microsoft.Extensions.Logging.Testing;
 
 namespace GrocerEase.IntegrationTests;
@@ -83,6 +85,21 @@ public sealed class RateLimitTests : IDisposable
         var everything = record.Message + string.Join(' ', record.StructuredState!.Select(p => p.Value));
         Assert.DoesNotContain("Passw0rd!", everything);
         Assert.DoesNotContain("ada@example.com", everything);
+    }
+
+    [Fact]
+    public async Task ARejection_IsCountedInTheRateLimitMetric()
+    {
+        var rejections = new MetricCollector<long>(
+            _factory.Services.GetRequiredService<IMeterFactory>(), "GrocerEase", "grocerease.auth.ratelimit_rejections");
+        using var client = _factory.CreateClient();
+        for (var attempt = 0; attempt < PermitLimit; attempt++)
+            await client.PostAsJsonAsync("/auth/register", new { });
+
+        await client.PostAsJsonAsync("/auth/register", new { });
+        await client.PostAsJsonAsync("/auth/register", new { });
+
+        Assert.Equal(2, rejections.GetMeasurementSnapshot().Sum(m => m.Value));
     }
 
     [Fact]

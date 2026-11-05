@@ -80,6 +80,7 @@ public class DependencyInjectionTests
         var services = new ServiceCollection();
         services.AddApplication();
         services.AddLogging();
+        services.AddMetrics();
         services.AddSingleton(Mock.Of<IJwtTokenGenerator>());
         services.AddSingleton(Mock.Of<IPasswordHasher>());
         services.AddSingleton((users ?? new Mock<IUserRepository>()).Object);

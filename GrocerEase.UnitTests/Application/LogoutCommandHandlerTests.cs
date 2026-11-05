@@ -10,7 +10,7 @@ using Moq;
 
 namespace GrocerEase.UnitTests.Application;
 
-public class LogoutCommandHandlerTests
+public sealed class LogoutCommandHandlerTests : IDisposable
 {
     private static readonly DateTime Issued = new(2026, 11, 5, 9, 0, 0, DateTimeKind.Utc);
     private static readonly DateTime Now = Issued.AddDays(1);
@@ -19,6 +19,7 @@ public class LogoutCommandHandlerTests
     private readonly Mock<IRefreshTokenRepository> _tokens = new();
     private readonly Mock<IUnitOfWork> _unitOfWork = new();
     private readonly FakeLogger<LogoutCommandHandler> _log = new();
+    private readonly TestMetrics _metrics = new();
     private readonly LogoutCommandHandler _sut;
 
     public LogoutCommandHandlerTests()
@@ -26,8 +27,10 @@ public class LogoutCommandHandlerTests
         _generator.Setup(g => g.Hash("presented")).Returns("presented-hash");
         _unitOfWork.Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
 
-        _sut = new LogoutCommandHandler(_generator.Object, _tokens.Object, _unitOfWork.Object, new FixedDateTimeProvider(Now), _log);
+        _sut = new LogoutCommandHandler(_generator.Object, _tokens.Object, _unitOfWork.Object, new FixedDateTimeProvider(Now), _log, _metrics.Metrics);
     }
+
+    public void Dispose() => _metrics.Dispose();
 
     [Fact]
     public async Task WithAKnownToken_RevokesEveryTokenInItsFamilyAndSaves()
@@ -83,6 +86,22 @@ public class LogoutCommandHandlerTests
         await _sut.HandleAsync(new LogoutCommand("presented"));
 
         Assert.Empty(_log.Collector.GetSnapshot());
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task CountsALogout_WhetherOrNotTheTokenWasKnown(bool known)
+    {
+        var attempts = _metrics.Count("grocerease.auth.attempts");
+        var token = RefreshToken.StartFamily(Guid.NewGuid(), "presented-hash", Issued, Issued.AddDays(30));
+        _tokens.Setup(r => r.GetByHashAsync("presented-hash", It.IsAny<CancellationToken>())).ReturnsAsync(known ? token : null);
+        _tokens.Setup(r => r.GetFamilyAsync(token.FamilyId, It.IsAny<CancellationToken>())).ReturnsAsync([token]);
+
+        await _sut.HandleAsync(new LogoutCommand("presented"));
+
+        // Both answer 204, so both count the same: a metric must not become a way to tell which tokens exist.
+        Assert.Equal(["logout/success"], TestMetrics.Attempts(attempts));
     }
 
     [Fact]
