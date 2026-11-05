@@ -18,4 +18,8 @@ public class JwtSettings
 
     [Range(1, int.MaxValue)]
     public int ExpiryMinutes { get; init; }
+
+    /// <summary>How long a refresh token works, counted from when it is issued. Each refresh issues a new one.</summary>
+    [Range(1, int.MaxValue)]
+    public int RefreshTokenExpiryDays { get; init; } = 30;
 }
