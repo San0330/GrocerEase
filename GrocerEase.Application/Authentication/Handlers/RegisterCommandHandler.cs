@@ -6,6 +6,7 @@ using GrocerEase.Application.Common.Interfaces.Services;
 using GrocerEase.Domain.Entities;
 using GrocerEase.Domain.Exceptions;
 using GrocerEase.Domain.ValueObjects;
+using Microsoft.Extensions.Logging;
 
 namespace GrocerEase.Application.Authentication.Handlers;
 
@@ -18,6 +19,7 @@ public sealed class RegisterCommandHandler : ICommandHandler<RegisterCommand, Au
     private readonly IDateTimeProvider _clock;
     private readonly IRefreshTokenGenerator _refreshTokenGenerator;
     private readonly IRefreshTokenRepository _refreshTokenRepository;
+    private readonly ILogger<RegisterCommandHandler> _logger;
 
     public RegisterCommandHandler(
         IJwtTokenGenerator jwtTokenGenerator,
@@ -26,7 +28,8 @@ public sealed class RegisterCommandHandler : ICommandHandler<RegisterCommand, Au
         IUnitOfWork unitOfWork,
         IDateTimeProvider clock,
         IRefreshTokenGenerator refreshTokenGenerator,
-        IRefreshTokenRepository refreshTokenRepository)
+        IRefreshTokenRepository refreshTokenRepository,
+        ILogger<RegisterCommandHandler> logger)
     {
         _jwtTokenGenerator = jwtTokenGenerator;
         _passwordHasher = passwordHasher;
@@ -35,6 +38,7 @@ public sealed class RegisterCommandHandler : ICommandHandler<RegisterCommand, Au
         _clock = clock;
         _refreshTokenGenerator = refreshTokenGenerator;
         _refreshTokenRepository = refreshTokenRepository;
+        _logger = logger;
     }
 
     public async Task<AuthenticationResult> HandleAsync(RegisterCommand command, CancellationToken cancellationToken = default)
@@ -43,6 +47,7 @@ public sealed class RegisterCommandHandler : ICommandHandler<RegisterCommand, Au
         var existing = await _userRepository.GetUserByEmailAsync(email, cancellationToken);
         if (existing is not null)
         {
+            _logger.RegistrationRejected(EmailFingerprint.Of(command.Email));
             throw new DuplicateEmailException();
         }
 
@@ -62,6 +67,9 @@ public sealed class RegisterCommandHandler : ICommandHandler<RegisterCommand, Au
 
         // One save, so the user and their first token are stored together or not at all.
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        // After the save: the event says the user exists, so a registration that fails to store must not claim it.
+        _logger.UserRegistered(user.Id);
 
         var token = _jwtTokenGenerator.GenerateToken(user.Id, user.FirstName, user.LastName, user.Email.Value);
 

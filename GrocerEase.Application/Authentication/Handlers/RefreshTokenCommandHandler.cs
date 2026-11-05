@@ -4,6 +4,7 @@ using GrocerEase.Application.Common.Interfaces.Authentication;
 using GrocerEase.Application.Common.Interfaces.Persistence;
 using GrocerEase.Application.Common.Interfaces.Services;
 using GrocerEase.Domain.Exceptions;
+using Microsoft.Extensions.Logging;
 
 namespace GrocerEase.Application.Authentication.Handlers;
 
@@ -15,6 +16,7 @@ public sealed class RefreshTokenCommandHandler : ICommandHandler<RefreshTokenCom
     private readonly IUserRepository _userRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IDateTimeProvider _clock;
+    private readonly ILogger<RefreshTokenCommandHandler> _logger;
 
     public RefreshTokenCommandHandler(
         IJwtTokenGenerator jwtTokenGenerator,
@@ -22,7 +24,8 @@ public sealed class RefreshTokenCommandHandler : ICommandHandler<RefreshTokenCom
         IRefreshTokenRepository refreshTokenRepository,
         IUserRepository userRepository,
         IUnitOfWork unitOfWork,
-        IDateTimeProvider clock)
+        IDateTimeProvider clock,
+        ILogger<RefreshTokenCommandHandler> logger)
     {
         _jwtTokenGenerator = jwtTokenGenerator;
         _refreshTokenGenerator = refreshTokenGenerator;
@@ -30,13 +33,18 @@ public sealed class RefreshTokenCommandHandler : ICommandHandler<RefreshTokenCom
         _userRepository = userRepository;
         _unitOfWork = unitOfWork;
         _clock = clock;
+        _logger = logger;
     }
 
     public async Task<AuthenticationResult> HandleAsync(RefreshTokenCommand command, CancellationToken cancellationToken = default)
     {
         var hash = _refreshTokenGenerator.Hash(command.RefreshToken);
-        var presented = await _refreshTokenRepository.GetByHashAsync(hash, cancellationToken)
-                        ?? throw new InvalidRefreshTokenException();
+        var presented = await _refreshTokenRepository.GetByHashAsync(hash, cancellationToken);
+        if (presented is null)
+        {
+            _logger.RefreshRejected(AuthenticationLog.Reasons.UnknownToken);
+            throw new InvalidRefreshTokenException();
+        }
 
         var now = _clock.UtcNow;
 
@@ -44,17 +52,23 @@ public sealed class RefreshTokenCommandHandler : ICommandHandler<RefreshTokenCom
         {
             // Every use revokes the token it replaces, so a revoked token coming back means a copy exists somewhere.
             // The owner and the holder of the copy cannot be told apart, so the whole family goes.
-            await RevokeFamilyAsync(presented.FamilyId, now);
+            var revoked = await RevokeFamilyAsync(presented.FamilyId, now);
+            _logger.RefreshTokenReuseDetected(presented.UserId, presented.FamilyId, revoked);
             throw new InvalidRefreshTokenException();
         }
 
         if (presented.IsExpired(now))
         {
+            _logger.RefreshRejected(AuthenticationLog.Reasons.ExpiredToken);
             throw new InvalidRefreshTokenException();
         }
 
-        var user = await _userRepository.GetByIdAsync(presented.UserId, cancellationToken)
-                   ?? throw new InvalidRefreshTokenException();
+        var user = await _userRepository.GetByIdAsync(presented.UserId, cancellationToken);
+        if (user is null)
+        {
+            _logger.RefreshRejected(AuthenticationLog.Reasons.UserMissing);
+            throw new InvalidRefreshTokenException();
+        }
 
         var refresh = _refreshTokenGenerator.Issue();
         var successor = presented.Rotate(refresh.Hash, now, refresh.ExpiresAt);
@@ -63,19 +77,29 @@ public sealed class RefreshTokenCommandHandler : ICommandHandler<RefreshTokenCom
 
         var token = _jwtTokenGenerator.GenerateToken(user.Id, user.FirstName, user.LastName, user.Email.Value);
 
+        _logger.TokenRefreshed(user.Id, presented.FamilyId);
+
         return AuthenticationResult.From(user, token, refresh.Token);
     }
 
     // Runs to the end even if the client disconnects. Otherwise cancelling the request would be a way to stop a
     // stolen family from being revoked.
-    private async Task RevokeFamilyAsync(Guid familyId, DateTime now)
+    // Returns how many tokens were still live, which is what the log reports: the ones a rotation had already revoked
+    // were dead before the reuse.
+    private async Task<int> RevokeFamilyAsync(Guid familyId, DateTime now)
     {
         var family = await _refreshTokenRepository.GetFamilyAsync(familyId, CancellationToken.None);
+        var stillLive = 0;
         foreach (var token in family)
         {
+            if (!token.IsRevoked)
+                stillLive++;
+
             token.Revoke(now);
         }
 
         await _unitOfWork.SaveChangesAsync(CancellationToken.None);
+
+        return stillLive;
     }
 }

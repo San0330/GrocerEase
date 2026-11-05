@@ -3,6 +3,7 @@ using GrocerEase.Application.Common.Handlers;
 using GrocerEase.Application.Common.Interfaces.Authentication;
 using GrocerEase.Application.Common.Interfaces.Persistence;
 using GrocerEase.Application.Common.Interfaces.Services;
+using Microsoft.Extensions.Logging;
 
 namespace GrocerEase.Application.Authentication.Handlers;
 
@@ -12,17 +13,20 @@ public sealed class LogoutCommandHandler : ICommandHandler<LogoutCommand, Unit>
     private readonly IRefreshTokenRepository _refreshTokenRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IDateTimeProvider _clock;
+    private readonly ILogger<LogoutCommandHandler> _logger;
 
     public LogoutCommandHandler(
         IRefreshTokenGenerator refreshTokenGenerator,
         IRefreshTokenRepository refreshTokenRepository,
         IUnitOfWork unitOfWork,
-        IDateTimeProvider clock)
+        IDateTimeProvider clock,
+        ILogger<LogoutCommandHandler> logger)
     {
         _refreshTokenGenerator = refreshTokenGenerator;
         _refreshTokenRepository = refreshTokenRepository;
         _unitOfWork = unitOfWork;
         _clock = clock;
+        _logger = logger;
     }
 
     public async Task<Unit> HandleAsync(LogoutCommand command, CancellationToken cancellationToken = default)
@@ -45,6 +49,8 @@ public sealed class LogoutCommandHandler : ICommandHandler<LogoutCommand, Unit>
         }
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        _logger.LoggedOut(presented.UserId, presented.FamilyId);
 
         return Unit.Value;
     }

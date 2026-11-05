@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Testcontainers.PostgreSql;
 
 namespace GrocerEase.IntegrationTests;
@@ -23,6 +24,9 @@ public class GrocerEaseApiFactory : WebApplicationFactory<Program>, IAsyncLifeti
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Testing");
+
+        // Every log record is kept, so tests can assert what was written and, above all, what was not.
+        builder.ConfigureLogging(logging => logging.AddFakeLogging());
         builder.ConfigureAppConfiguration((_, config) =>
         {
             config.AddInMemoryCollection(new Dictionary<string, string?>

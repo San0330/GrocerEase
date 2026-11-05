@@ -6,6 +6,9 @@ using GrocerEase.Domain.Exceptions;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Testing;
 
 namespace GrocerEase.IntegrationTests;
 
@@ -31,6 +34,7 @@ public sealed class RateLimitTests : IDisposable
                 ["RateLimiting:Auth:PermitLimit"] = PermitLimit.ToString(),
                 ["RateLimiting:Auth:WindowSeconds"] = "60",
             }));
+            builder.ConfigureLogging(logging => logging.AddFakeLogging());
         });
 
     public void Dispose() => _factory.Dispose();
@@ -61,6 +65,24 @@ public sealed class RateLimitTests : IDisposable
         Assert.Equal(429, problem.Status);
         Assert.Equal("Too Many Requests", problem.Title);
         Assert.False(string.IsNullOrEmpty(problem.TraceId));
+    }
+
+    [Fact]
+    public async Task ARejection_IsLoggedAsAWarningWithThePathAndNoBodyOrToken()
+    {
+        using var client = _factory.CreateClient();
+        for (var attempt = 0; attempt < PermitLimit; attempt++)
+            await client.PostAsJsonAsync("/auth/login", new { email = "ada@example.com", password = "Passw0rd!" });
+
+        var limited = await client.PostAsJsonAsync("/auth/login", new { email = "ada@example.com", password = "Passw0rd!" });
+
+        Assert.Equal(HttpStatusCode.TooManyRequests, limited.StatusCode);
+        var record = Assert.Single(_factory.Services.GetFakeLogCollector().GetSnapshot(), r => r.Id.Id == 1009);
+        Assert.Equal(LogLevel.Warning, record.Level);
+        Assert.Equal("/auth/login", record.StructuredState!.Single(p => p.Key == "Path").Value);
+        var everything = record.Message + string.Join(' ', record.StructuredState!.Select(p => p.Value));
+        Assert.DoesNotContain("Passw0rd!", everything);
+        Assert.DoesNotContain("ada@example.com", everything);
     }
 
     [Fact]

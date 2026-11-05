@@ -1,3 +1,4 @@
+using GrocerEase.Application.Authentication;
 using GrocerEase.Application.Authentication.Commands;
 using GrocerEase.Application.Authentication.Handlers;
 using GrocerEase.Application.Common.Interfaces.Authentication;
@@ -6,6 +7,8 @@ using GrocerEase.Domain.Entities;
 using GrocerEase.Domain.Exceptions;
 using GrocerEase.Domain.ValueObjects;
 using GrocerEase.UnitTests.Support;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Testing;
 using Moq;
 
 namespace GrocerEase.UnitTests.Application;
@@ -18,6 +21,7 @@ public class RegisterCommandHandlerTests
     private readonly Mock<IUnitOfWork> _unitOfWork = new();
     private readonly Mock<IRefreshTokenGenerator> _refreshTokens = new();
     private readonly Mock<IRefreshTokenRepository> _refreshTokenStore = new();
+    private readonly FakeLogger<RegisterCommandHandler> _log = new();
     private static readonly DateTime Now = new(2026, 11, 1, 9, 30, 0, DateTimeKind.Utc);
     private static readonly IssuedRefreshToken Issued = new("raw-refresh-token", "refresh-hash", Now.AddDays(30));
 
@@ -38,7 +42,8 @@ public class RegisterCommandHandlerTests
             _unitOfWork.Object,
             new FixedDateTimeProvider(Now),
             _refreshTokens.Object,
-            _refreshTokenStore.Object);
+            _refreshTokenStore.Object,
+            _log);
     }
 
     [Fact]
@@ -146,6 +151,64 @@ public class RegisterCommandHandlerTests
         _jwt.Verify(
             j => j.GenerateToken(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()),
             Times.Never);
+    }
+
+    [Fact]
+    public async Task WithValidCommand_LogsWhoRegistered_AfterTheSave()
+    {
+        var order = new List<string>();
+        User? saved = null;
+        _passwords.Setup(p => p.Hash(It.IsAny<string>())).Returns("hashed");
+        _jwt.Setup(j => j.GenerateToken(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+            .Returns("token");
+        _users
+            .Setup(r => r.AddAsync(It.IsAny<User>(), It.IsAny<CancellationToken>()))
+            .Callback<User, CancellationToken>((user, _) => saved = user)
+            .Returns(Task.CompletedTask);
+        _unitOfWork
+            .Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()))
+            .Callback(() => order.Add(_log.Collector.Count == 0 ? "saved-before-log" : "saved-after-log"))
+            .Returns(Task.CompletedTask);
+
+        await _sut.HandleAsync(ValidRegister());
+
+        // The event says the user exists, so it must not be written for a registration that then fails to save.
+        Assert.Equal(["saved-before-log"], order);
+        var record = Assert.Single(_log.Collector.GetSnapshot());
+        Assert.Equal(1001, record.Id.Id);
+        Assert.Equal(LogLevel.Information, record.Level);
+        Assert.Equal(saved!.Id.ToString(), record.StructuredState!.Single(p => p.Key == "UserId").Value);
+    }
+
+    [Fact]
+    public async Task WhenTheSaveFails_LogsNothing()
+    {
+        _passwords.Setup(p => p.Hash(It.IsAny<string>())).Returns("hashed");
+        _unitOfWork
+            .Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new DuplicateEmailException());
+
+        await Assert.ThrowsAsync<DuplicateEmailException>(() => _sut.HandleAsync(ValidRegister()));
+
+        Assert.Empty(_log.Collector.GetSnapshot());
+    }
+
+    [Fact]
+    public async Task WhenTheEmailIsAlreadyRegistered_LogsTheRejectionWithAFingerprintAndNotTheAddress()
+    {
+        _users
+            .Setup(r => r.GetUserByEmailAsync(Email.Create("ada@example.com"), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ExistingUser());
+
+        await Assert.ThrowsAsync<DuplicateEmailException>(() => _sut.HandleAsync(ValidRegister()));
+
+        var record = Assert.Single(_log.Collector.GetSnapshot());
+        Assert.Equal(1002, record.Id.Id);
+        Assert.Equal(LogLevel.Information, record.Level);
+        Assert.Equal(EmailFingerprint.Of("ada@example.com"), record.StructuredState!.Single(p => p.Key == "EmailFingerprint").Value);
+        var everything = record.Message + string.Join(' ', record.StructuredState!.Select(pair => pair.Value));
+        Assert.DoesNotContain("ada@example.com", everything, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Passw0rd!", everything);
     }
 
     private static RegisterCommand ValidRegister() =>

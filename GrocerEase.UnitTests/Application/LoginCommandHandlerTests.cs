@@ -1,3 +1,4 @@
+using GrocerEase.Application.Authentication;
 using GrocerEase.Application.Authentication.Commands;
 using GrocerEase.Application.Authentication.Handlers;
 using GrocerEase.Application.Common.Interfaces.Authentication;
@@ -6,6 +7,8 @@ using GrocerEase.Domain.Entities;
 using GrocerEase.Domain.Exceptions;
 using GrocerEase.Domain.ValueObjects;
 using GrocerEase.UnitTests.Support;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Testing;
 using Moq;
 
 namespace GrocerEase.UnitTests.Application;
@@ -18,6 +21,7 @@ public class LoginCommandHandlerTests
     private readonly Mock<IRefreshTokenGenerator> _refreshTokens = new();
     private readonly Mock<IRefreshTokenRepository> _refreshTokenStore = new();
     private readonly Mock<IUnitOfWork> _unitOfWork = new();
+    private readonly FakeLogger<LoginCommandHandler> _log = new();
     private static readonly DateTime Now = new(2026, 11, 5, 9, 30, 0, DateTimeKind.Utc);
     private static readonly IssuedRefreshToken Issued = new("raw-refresh-token", "refresh-hash", Now.AddDays(30));
     private readonly LoginCommandHandler _sut;
@@ -36,7 +40,8 @@ public class LoginCommandHandlerTests
             _refreshTokens.Object,
             _refreshTokenStore.Object,
             _unitOfWork.Object,
-            new FixedDateTimeProvider(Now));
+            new FixedDateTimeProvider(Now),
+            _log);
     }
 
     [Fact]
@@ -150,6 +155,67 @@ public class LoginCommandHandlerTests
             j => j.GenerateToken(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()),
             Times.Never);
         AssertNothingIssuedOrSaved();
+    }
+
+    [Fact]
+    public async Task WhenLoginSucceeds_LogsWhoLoggedIn()
+    {
+        var user = ExistingUser();
+        GivenLoginSucceeds(user);
+
+        await _sut.HandleAsync(new LoginCommand("ada@example.com", "Passw0rd!"));
+
+        var record = Assert.Single(_log.Collector.GetSnapshot());
+        Assert.Equal(1003, record.Id.Id);
+        Assert.Equal(LogLevel.Information, record.Level);
+        Assert.Equal(user.Id.ToString(), State(record, "UserId"));
+    }
+
+    [Fact]
+    public async Task WhenTheEmailIsUnknown_LogsAWarningWithTheReasonAndOnlyAFingerprintOfTheEmail()
+    {
+        _users
+            .Setup(r => r.GetUserByEmailAsync(It.IsAny<Email>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((User?)null);
+
+        await Assert.ThrowsAsync<InvalidCredentialsException>(() =>
+            _sut.HandleAsync(new LoginCommand("Ada@Example.COM", "Passw0rd!")));
+
+        var record = Assert.Single(_log.Collector.GetSnapshot());
+        Assert.Equal(1004, record.Id.Id);
+        Assert.Equal(LogLevel.Warning, record.Level);
+        Assert.Equal("unknown_email", State(record, "Reason"));
+        Assert.Equal(EmailFingerprint.Of("ada@example.com"), State(record, "EmailFingerprint"));
+        AssertNothingSensitiveWasLogged(record);
+    }
+
+    [Fact]
+    public async Task WhenThePasswordIsWrong_LogsAWarningWithADifferentReasonFromAnUnknownEmail()
+    {
+        var user = ExistingUser();
+        _users
+            .Setup(r => r.GetUserByEmailAsync(It.IsAny<Email>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(user);
+        _passwords.Setup(p => p.Verify("wrong-password", user.PasswordHash)).Returns(false);
+
+        await Assert.ThrowsAsync<InvalidCredentialsException>(() =>
+            _sut.HandleAsync(new LoginCommand("ada@example.com", "wrong-password")));
+
+        var record = Assert.Single(_log.Collector.GetSnapshot());
+        Assert.Equal(1004, record.Id.Id);
+        Assert.Equal("wrong_password", State(record, "Reason"));
+        AssertNothingSensitiveWasLogged(record, "wrong-password");
+    }
+
+    private static string? State(FakeLogRecord record, string key) =>
+        record.StructuredState!.SingleOrDefault(pair => pair.Key == key).Value;
+
+    private static void AssertNothingSensitiveWasLogged(FakeLogRecord record, string password = "Passw0rd!")
+    {
+        var everything = record.Message + string.Join(' ', record.StructuredState!.Select(pair => pair.Value));
+        Assert.DoesNotContain(password, everything);
+        Assert.DoesNotContain("ada@example.com", everything, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("refresh-hash", everything);
     }
 
     private void GivenLoginSucceeds(User user)

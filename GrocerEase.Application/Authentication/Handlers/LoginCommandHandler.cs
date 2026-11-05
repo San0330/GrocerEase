@@ -6,6 +6,7 @@ using GrocerEase.Application.Common.Interfaces.Services;
 using GrocerEase.Domain.Entities;
 using GrocerEase.Domain.Exceptions;
 using GrocerEase.Domain.ValueObjects;
+using Microsoft.Extensions.Logging;
 
 namespace GrocerEase.Application.Authentication.Handlers;
 
@@ -18,6 +19,7 @@ public sealed class LoginCommandHandler : ICommandHandler<LoginCommand, Authenti
     private readonly IRefreshTokenRepository _refreshTokenRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IDateTimeProvider _clock;
+    private readonly ILogger<LoginCommandHandler> _logger;
 
     public LoginCommandHandler(
         IJwtTokenGenerator jwtTokenGenerator,
@@ -26,7 +28,8 @@ public sealed class LoginCommandHandler : ICommandHandler<LoginCommand, Authenti
         IRefreshTokenGenerator refreshTokenGenerator,
         IRefreshTokenRepository refreshTokenRepository,
         IUnitOfWork unitOfWork,
-        IDateTimeProvider clock)
+        IDateTimeProvider clock,
+        ILogger<LoginCommandHandler> logger)
     {
         _jwtTokenGenerator = jwtTokenGenerator;
         _passwordHasher = passwordHasher;
@@ -35,6 +38,7 @@ public sealed class LoginCommandHandler : ICommandHandler<LoginCommand, Authenti
         _refreshTokenRepository = refreshTokenRepository;
         _unitOfWork = unitOfWork;
         _clock = clock;
+        _logger = logger;
     }
 
     public async Task<AuthenticationResult> HandleAsync(LoginCommand command, CancellationToken cancellationToken = default)
@@ -46,6 +50,10 @@ public sealed class LoginCommandHandler : ICommandHandler<LoginCommand, Authenti
 
         if (user is null || !passwordMatches)
         {
+            // The two reasons are for the operator. The caller gets the same answer for both.
+            _logger.LoginFailed(
+                user is null ? AuthenticationLog.Reasons.UnknownEmail : AuthenticationLog.Reasons.WrongPassword,
+                EmailFingerprint.Of(command.Email));
             throw new InvalidCredentialsException();
         }
 
@@ -57,6 +65,8 @@ public sealed class LoginCommandHandler : ICommandHandler<LoginCommand, Authenti
             RefreshToken.StartFamily(user.Id, refresh.Hash, _clock.UtcNow, refresh.ExpiresAt),
             cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        _logger.LoginSucceeded(user.Id);
 
         return AuthenticationResult.From(user, token, refresh.Token);
     }

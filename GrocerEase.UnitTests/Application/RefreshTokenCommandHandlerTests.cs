@@ -6,6 +6,8 @@ using GrocerEase.Domain.Entities;
 using GrocerEase.Domain.Exceptions;
 using GrocerEase.Domain.ValueObjects;
 using GrocerEase.UnitTests.Support;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Testing;
 using Moq;
 
 namespace GrocerEase.UnitTests.Application;
@@ -21,6 +23,7 @@ public class RefreshTokenCommandHandlerTests
     private readonly Mock<IRefreshTokenRepository> _tokens = new();
     private readonly Mock<IUserRepository> _users = new();
     private readonly Mock<IUnitOfWork> _unitOfWork = new();
+    private readonly FakeLogger<RefreshTokenCommandHandler> _log = new();
     private readonly User _user = User.Register("Ada", "Lovelace", Email.Create("ada@example.com"), "stored-hash", Issued);
     private readonly RefreshTokenCommandHandler _sut;
 
@@ -38,7 +41,8 @@ public class RefreshTokenCommandHandlerTests
             _tokens.Object,
             _users.Object,
             _unitOfWork.Object,
-            new FixedDateTimeProvider(Now));
+            new FixedDateTimeProvider(Now),
+            _log);
     }
 
     [Fact]
@@ -154,6 +158,103 @@ public class RefreshTokenCommandHandlerTests
         _tokens.Verify(r => r.GetFamilyAsync(old.FamilyId, CancellationToken.None), Times.Once);
         _unitOfWork.Verify(u => u.SaveChangesAsync(CancellationToken.None), Times.Once);
     }
+
+    [Fact]
+    public async Task WithAnActiveToken_LogsTheRefreshWithTheUserAndFamily_AfterTheSave()
+    {
+        var presented = GivenStoredToken();
+
+        await _sut.HandleAsync(new RefreshTokenCommand("presented"));
+
+        var record = Assert.Single(_log.Collector.GetSnapshot());
+        Assert.Equal(1005, record.Id.Id);
+        Assert.Equal(LogLevel.Information, record.Level);
+        Assert.Equal(_user.Id.ToString(), State(record, "UserId"));
+        Assert.Equal(presented.FamilyId.ToString(), State(record, "FamilyId"));
+    }
+
+    [Fact]
+    public async Task WhenTheTokenIsUnknown_LogsTheReason()
+    {
+        _tokens.Setup(r => r.GetByHashAsync("presented-hash", It.IsAny<CancellationToken>())).ReturnsAsync((RefreshToken?)null);
+
+        await Assert.ThrowsAsync<InvalidRefreshTokenException>(() => _sut.HandleAsync(new RefreshTokenCommand("presented")));
+
+        AssertRejectedFor("unknown_token");
+    }
+
+    [Fact]
+    public async Task WhenTheTokenHasExpired_LogsTheReason()
+    {
+        var stored = RefreshToken.StartFamily(_user.Id, "presented-hash", Issued, Issued.AddHours(12));
+        _tokens.Setup(r => r.GetByHashAsync("presented-hash", It.IsAny<CancellationToken>())).ReturnsAsync(stored);
+
+        await Assert.ThrowsAsync<InvalidRefreshTokenException>(() => _sut.HandleAsync(new RefreshTokenCommand("presented")));
+
+        AssertRejectedFor("expired_token");
+    }
+
+    [Fact]
+    public async Task WhenTheUserNoLongerExists_LogsTheReason()
+    {
+        GivenStoredToken();
+        _users.Setup(u => u.GetByIdAsync(_user.Id, It.IsAny<CancellationToken>())).ReturnsAsync((User?)null);
+
+        await Assert.ThrowsAsync<InvalidRefreshTokenException>(() => _sut.HandleAsync(new RefreshTokenCommand("presented")));
+
+        AssertRejectedFor("user_missing");
+    }
+
+    [Fact]
+    public async Task WhenARevokedTokenIsPresentedAgain_LogsAWarningWithHowManyTokensWereRevoked()
+    {
+        var old = RefreshToken.StartFamily(_user.Id, "presented-hash", Issued, Issued.AddDays(30));
+        var current = old.Rotate("current-hash", Issued.AddHours(1), Issued.AddDays(30));
+        _tokens.Setup(r => r.GetByHashAsync("presented-hash", It.IsAny<CancellationToken>())).ReturnsAsync(old);
+        _tokens.Setup(r => r.GetFamilyAsync(old.FamilyId, It.IsAny<CancellationToken>())).ReturnsAsync([old, current]);
+
+        await Assert.ThrowsAsync<InvalidRefreshTokenException>(() => _sut.HandleAsync(new RefreshTokenCommand("presented")));
+
+        var record = Assert.Single(_log.Collector.GetSnapshot());
+        Assert.Equal(1007, record.Id.Id);
+        Assert.Equal(LogLevel.Warning, record.Level);
+        Assert.Equal(_user.Id.ToString(), State(record, "UserId"));
+        Assert.Equal(old.FamilyId.ToString(), State(record, "FamilyId"));
+        // Only the token that was still live counts: the one the rotation already revoked was dead before the reuse.
+        Assert.Equal("1", State(record, "TokensRevoked"));
+    }
+
+    [Fact]
+    public async Task NoRefreshLogLineContainsTheTokenOrItsHash()
+    {
+        var old = RefreshToken.StartFamily(_user.Id, "presented-hash", Issued, Issued.AddDays(30));
+        old.Revoke(Issued.AddHours(1));
+        _tokens.Setup(r => r.GetByHashAsync("presented-hash", It.IsAny<CancellationToken>())).ReturnsAsync(old);
+        _tokens.Setup(r => r.GetFamilyAsync(old.FamilyId, It.IsAny<CancellationToken>())).ReturnsAsync([old]);
+        await Assert.ThrowsAsync<InvalidRefreshTokenException>(() => _sut.HandleAsync(new RefreshTokenCommand("presented")));
+        GivenStoredToken();
+        await _sut.HandleAsync(new RefreshTokenCommand("presented"));
+
+        foreach (var record in _log.Collector.GetSnapshot())
+        {
+            var everything = record.Message + string.Join(' ', record.StructuredState!.Select(pair => pair.Value));
+            Assert.DoesNotContain("presented", everything);
+            Assert.DoesNotContain("next-raw", everything);
+            Assert.DoesNotContain("next-hash", everything);
+            Assert.DoesNotContain("new-jwt", everything);
+        }
+    }
+
+    private void AssertRejectedFor(string reason)
+    {
+        var record = Assert.Single(_log.Collector.GetSnapshot());
+        Assert.Equal(1006, record.Id.Id);
+        Assert.Equal(LogLevel.Information, record.Level);
+        Assert.Equal(reason, State(record, "Reason"));
+    }
+
+    private static string? State(FakeLogRecord record, string key) =>
+        record.StructuredState!.SingleOrDefault(pair => pair.Key == key).Value;
 
     private RefreshToken GivenStoredToken()
     {

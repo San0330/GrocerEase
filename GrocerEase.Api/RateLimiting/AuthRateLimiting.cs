@@ -9,7 +9,7 @@ namespace GrocerEase.Api.RateLimiting;
 /// Caps register and login attempts per client address. Each attempt costs a BCrypt hash, so without a cap
 /// the endpoints invite both password guessing and CPU exhaustion.
 /// </summary>
-public static class AuthRateLimiting
+public static partial class AuthRateLimiting
 {
     public const string PolicyName = "auth";
 
@@ -54,6 +54,14 @@ public static class AuthRateLimiting
             response.Headers.RetryAfter = ((int)Math.Ceiling(retryAfter.TotalSeconds)).ToString();
         }
 
+        // The caller's address and the endpoint, nothing from the body: only /auth/* is limited, so the path is one of a
+        // few known values, and the address is what a repeated attempt can be traced to.
+        context.HttpContext.RequestServices.GetRequiredService<ILoggerFactory>()
+            .CreateLogger(typeof(AuthRateLimiting).FullName!)
+            .RateLimitRejected(
+                context.HttpContext.Request.Path.Value ?? string.Empty,
+                context.HttpContext.Connection.RemoteIpAddress?.ToString() ?? UnknownClient);
+
         await ApiProblem.WriteAsync(
             context.HttpContext,
             ApiProblem.Error(
@@ -64,4 +72,10 @@ public static class AuthRateLimiting
                 "Too many requests. Try again later."),
             cancellationToken);
     }
+
+    [LoggerMessage(
+        EventId = 1009,
+        Level = LogLevel.Warning,
+        Message = "Rate limit exceeded on {Path} from {ClientAddress}")]
+    private static partial void RateLimitRejected(this ILogger logger, string path, string clientAddress);
 }
