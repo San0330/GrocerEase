@@ -50,6 +50,8 @@ A missing property is `400` while a present but empty one is `422`. This split c
 
 **Rate limit.** `/auth/register` and `/auth/login` share one budget per client address, 10 requests per 60 seconds by default, because each attempt costs a BCrypt hash. Change it with `RateLimiting:Auth:PermitLimit` and `RateLimiting:Auth:WindowSeconds`. The address is the socket's, so behind a reverse proxy every client looks like the proxy until forwarded headers are configured.
 
+**CORS.** A browser frontend may call the API from the origins in `Cors:AllowedOrigins`, which defaults to `http://localhost:3000`. Any method and header is allowed, and `Retry-After` is exposed so the frontend can back off after a `429`. Cookies are not allowed, since authentication is a bearer token. Another environment sets its own list with `Cors__AllowedOrigins__0`, `Cors__AllowedOrigins__1` and so on. Each entry is scheme, host and optional port with no trailing slash (`https://app.example.com`); anything else stops the host at startup.
+
 The OpenAPI document is served at `/openapi/v1.json` when the app runs in the Development environment.
 
 What is done and what is still open is tracked in [`TODO.md`](TODO.md).

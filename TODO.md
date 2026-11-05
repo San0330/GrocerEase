@@ -12,7 +12,7 @@ The architecture foundation is genuinely good. Most projects at this stage are a
 
 | State | Rating | Description |
 |---|---|---|
-| Right now | **8.0** | Auth is tested, and the service commits through `IUnitOfWork`. CORS and token refresh remain |
+| Right now | **8.0** | Auth is tested, and the service commits through `IUnitOfWork`. Token refresh remains |
 | TODO list done | **8.5** | Production-ready auth service |
 | + Observability + more features | **9.0** | Proven at scale |
 | + DDD domain model + CI/CD | **9.5** | Senior-level codebase |
@@ -28,7 +28,7 @@ The architecture foundation is genuinely good. Most projects at this stage are a
 | Unit of Work | Done — `AddAsync` only tracks the user. `RegisterCommandHandler` calls `IUnitOfWork.SaveChangesAsync`, so one use case can commit several repositories together |
 | JWT auth middleware | Done — `GET /profile` is `[Authorize]`-only; other routes are still public |
 | Options validation at startup | Done — missing or short `JwtSettings`, and a BCrypt cost outside 4–31, stop the host before it listens |
-| CORS | Deployment hygiene — HTTP is redirected to HTTPS when the host knows an HTTPS port. A browser frontend still needs a CORS policy |
+| CORS | Done — `Cors:AllowedOrigins` lists the origins that may call the API from a browser; `http://localhost:3000` is the default. HTTP is also redirected to HTTPS when the host knows an HTTPS port |
 
 ### The Ceiling Beyond the TODO
 
@@ -54,8 +54,6 @@ _None right now._
 ---
 
 ## 🟢 Minor
-
-- [ ] **CORS policy** — No policy configured. Required as soon as a frontend is added.
 
 - [ ] **Token refresh** — No refresh token mechanism. Expired JWTs require re-login with no silent renewal path.
 
@@ -137,7 +135,7 @@ Assumes the planned features are complete. Found by checking the repo on 2026-11
 
 ### Already tracked elsewhere in this file
 
-These production items are open at the end of the file, under Done, and are not repeated here: CORS policy, token refresh, forwarded headers for the rate limiter, registration revealing which emails exist, migrations as a pipeline step, separating the migration role from the runtime role, authorization (roles and policies), the bearer token printing in `ToString()`, and the JSON naming policy in `ErrorKeys`.
+These production items are open at the end of the file, under Done, and are not repeated here: token refresh, forwarded headers for the rate limiter, registration revealing which emails exist, migrations as a pipeline step, separating the migration role from the runtime role, authorization (roles and policies), the bearer token printing in `ToString()`, and the JSON naming policy in `ErrorKeys`.
 
 ---
 
@@ -181,6 +179,7 @@ These production items are open at the end of the file, under Done, and are not 
 - [x] Postgres published on loopback only — `docker-compose.yml` maps `127.0.0.1:5432:5432`, so the database that holds a superuser login is no longer reachable from other machines. The API still reaches it over the compose network, and tools on the host still connect to `localhost:5432`
 - [x] The API connects as a non-superuser role — `grocerease.db-init` (a one-shot compose service running `docker/postgres/init-app-role.sql`) creates `grocerease_app` on every `docker compose up`, sets its password from `APP_DB_PASSWORD`, and makes it the owner of `GrocerEaseDb` and its tables. The role can create the trusted `citext` extension as the database owner, so startup migrations still work. The `postgres` superuser stays for setup and administration; add `APP_DB_PASSWORD` to an existing `.env`
 - [x] The plaintext password no longer appears in `ToString()` — `RegisterCommand`, `LoginCommand`, `RegisterRequest` and `LoginRequest` are records, and a record prints every property, so logging or interpolating one would have written the caller's password out. Each overrides `PrintMembers` and prints `Password = [redacted]`; the other fields still print. `PasswordRedactionTests` checks the four types and also finds, by reflection, any type in Application or Contracts with a password-like property, so a future `ChangePasswordCommand` is covered. Nothing logged one before; this closes the latent path
+- [x] CORS policy for the browser frontend — `Cors:AllowedOrigins` (default `http://localhost:3000` in `appsettings.json`) feeds a `frontend` policy that allows any method and header and exposes `Retry-After`; credentials stay off because auth is a bearer token. `UseCors` runs before the rate limiter and auth, so a preflight needs no token and 401/429 responses stay readable by the frontend. A malformed origin (trailing slash, no scheme, a path) stops the host at startup. `CorsTests` covers it; other environments set `Cors__AllowedOrigins__0`
 - [x] Test projects added to `GrocerEase.slnx` — `GrocerEase.UnitTests` and `GrocerEase.IntegrationTests` now belong to the solution, so `dotnet test` from the root and IDE test discovery run both. The integration tests need Docker for the Postgres container; skip them with `dotnet test --filter "FullyQualifiedName!~IntegrationTests"`
 
 - [ ] **The bearer token still prints in `ToString()`** — `AuthenticationResult` and `AuthenticationResponse` are records with a `Token` property. A token is a credential until it expires. Redact it the same way, and widen the reflection test in `PasswordRedactionTests` to look for `Token` as well.
