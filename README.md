@@ -95,6 +95,17 @@ The launch profiles set `Database__MigrateOnStartup=true`, so the tables are cre
 
 `GrocerEase.Api/auth.http` has sample requests.
 
+To see traces, metrics and logs while running locally, start the dashboard and point the API at it:
+
+```bash
+docker run --rm -p 127.0.0.1:18888:18888 -p 127.0.0.1:4317:18889 \
+  -e DASHBOARD__FRONTEND__AUTHMODE=Unsecured -e DASHBOARD__OTLP__AUTHMODE=Unsecured \
+  mcr.microsoft.com/dotnet/aspire-dashboard:13.6.2
+OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317 dotnet run --project GrocerEase.Api --launch-profile https
+```
+
+Open `http://localhost:18888`. Without `OTEL_EXPORTER_OTLP_ENDPOINT` the API exports nothing.
+
 ### With Docker
 
 ```bash
@@ -103,6 +114,8 @@ docker compose up --build
 ```
 
 The API is at `http://localhost:5000` and Postgres at `localhost:5432`. Postgres is published on the loopback interface only, so other machines on your network cannot reach it. Compose sets `Database__MigrateOnStartup=true`, so the API creates the tables on first start, and runs it in the `Production` environment as a non-root user, so the OpenAPI document is not served; run the API locally for that. `.env` is gitignored, and compose refuses to start if a value is missing.
+
+The `grocerease.telemetry` service is the .NET Aspire Dashboard. Compose points the API at it, and the dashboard is at `http://localhost:18888`, published on the loopback interface only because it runs without a login. It keeps what it receives in memory, so restarting it empties it, and the API does not wait for it: with the dashboard stopped, requests are unaffected.
 
 The API does not connect as the `postgres` superuser. On every `up`, the one-shot `grocerease.db-init` service runs `docker/postgres/init-app-role.sql`, which creates the `grocerease_app` role (no superuser rights), gives it `APP_DB_PASSWORD`, and makes it the owner of `GrocerEaseDb`, including tables an older volume already holds. The API starts only after that succeeds. Use `postgres` with `POSTGRES_PASSWORD` for administration from a database tool.
 

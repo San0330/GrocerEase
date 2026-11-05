@@ -29,6 +29,9 @@ services:
       - JwtSettings__ExpiryMinutes=60
       # Create or update the tables when the API starts. Safe because compose waits for a healthy database.
       - Database__MigrateOnStartup=true
+      # Send traces, metrics and logs to the dashboard below. Remove this line to export nothing: telemetry is optional,
+      # the API does not wait for the dashboard, and an unreachable one never affects a request.
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://grocerease.telemetry:18889
 
     # Restart the container automatically if it crashes
     restart: on-failure
@@ -81,6 +84,29 @@ services:
     depends_on:
       grocerease.db:
         condition: service_healthy
+
+  # ── Telemetry dashboard ─────────────────────────────────────────────────────
+  # The .NET Aspire Dashboard: receives the API's traces, metrics and logs over OTLP and shows them in a browser at
+  # http://localhost:18888. It keeps everything in memory, so a restart empties it. It is a development tool, not a
+  # production backend.
+  grocerease.telemetry:
+    image: mcr.microsoft.com/dotnet/aspire-dashboard:13.6.2
+
+    container_name: grocerease-telemetry
+
+    # The browser UI, on the loopback interface only, like Postgres. It is started without a login (see below), so it
+    # must not be reachable from other machines. The OTLP port (18889) is deliberately not published: the API reaches it
+    # over the compose network, and nothing else needs to.
+    ports:
+      - "127.0.0.1:18888:18888"
+
+    environment:
+      # No login token for the UI, and no API key on the OTLP port. Safe only because of the loopback mapping above and
+      # the unpublished OTLP port. Remove both lines to have the dashboard print a login token in its log instead.
+      DASHBOARD__FRONTEND__AUTHMODE: Unsecured
+      DASHBOARD__OTLP__AUTHMODE: Unsecured
+
+    restart: on-failure
 
   # ── PostgreSQL Database ─────────────────────────────────────────────────────
   grocerease.db:
