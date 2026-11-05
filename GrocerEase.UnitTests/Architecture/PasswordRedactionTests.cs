@@ -1,5 +1,6 @@
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using GrocerEase.Application.Authentication;
 using GrocerEase.Application.Authentication.Commands;
 using GrocerEase.Contracts.Authentication;
 
@@ -7,7 +8,7 @@ namespace GrocerEase.UnitTests.Architecture;
 
 /// <summary>
 /// A <c>record</c> writes every property into its <c>ToString()</c>. Anything that logs or interpolates a command or a
-/// request would then write the caller's plaintext password to the log. These tests keep the password out.
+/// request would then write the caller's plaintext password, or a bearer token, to the log. These tests keep both out.
 /// </summary>
 public class PasswordRedactionTests
 {
@@ -19,6 +20,12 @@ public class PasswordRedactionTests
         new LoginCommand("ada@example.com", Secret),
         new RegisterRequest("Ada", "Lovelace", "ada@example.com", Secret),
         new LoginRequest("ada@example.com", Secret),
+    };
+
+    public static TheoryData<object> RecordsThatCarryAToken => new()
+    {
+        new AuthenticationResult(Guid.NewGuid(), "Ada", "Lovelace", "ada@example.com", Secret),
+        new AuthenticationResponse(Guid.NewGuid(), "Ada", "Lovelace", "ada@example.com", Secret),
     };
 
     [Theory]
@@ -34,8 +41,20 @@ public class PasswordRedactionTests
         Assert.StartsWith(value.GetType().Name, text);
     }
 
+    [Theory]
+    [MemberData(nameof(RecordsThatCarryAToken))]
+    public void ToString_LeavesTheTokenOut_AndKeepsTheRest(object value)
+    {
+        var text = value.ToString()!;
+
+        Assert.DoesNotContain(Secret, text);
+        Assert.Contains("Token = [redacted]", text);
+        Assert.Contains("ada@example.com", text);
+        Assert.StartsWith(value.GetType().Name, text);
+    }
+
     [Fact]
-    public void EveryTypeThatCarriesAPassword_KeepsItOutOfToString()
+    public void EveryTypeThatCarriesASecret_KeepsItOutOfToString()
     {
         // Finds types by reflection, so the next command (a password change, a reset) is covered without remembering
         // to add it to the list above. Application and Contracts are where outside input arrives as records.
@@ -45,7 +64,7 @@ public class PasswordRedactionTests
             .SelectMany(assembly => assembly.GetTypes())
             .Where(type => type is { IsClass: true, IsAbstract: false, IsPublic: true }
                            && !type.IsDefined(typeof(CompilerGeneratedAttribute)))
-            .Select(type => (type, properties: PasswordProperties(type)))
+            .Select(type => (type, properties: SecretProperties(type)))
             .Where(pair => pair.properties.Length > 0)
             .ToArray();
 
@@ -68,13 +87,14 @@ public class PasswordRedactionTests
             }
         }
 
-        Assert.True(leaking.Count == 0, "ToString prints a password: " + string.Join(", ", leaking));
+        Assert.True(leaking.Count == 0, "ToString prints a password or token: " + string.Join(", ", leaking));
     }
 
-    private static PropertyInfo[] PasswordProperties(Type type) => type
+    private static PropertyInfo[] SecretProperties(Type type) => type
         .GetProperties(BindingFlags.Public | BindingFlags.Instance)
         .Where(property => property.PropertyType == typeof(string)
                            && property.CanWrite
-                           && property.Name.Contains("Password", StringComparison.OrdinalIgnoreCase))
+                           && (property.Name.Contains("Password", StringComparison.OrdinalIgnoreCase)
+                               || property.Name.Contains("Token", StringComparison.OrdinalIgnoreCase)))
         .ToArray();
 }

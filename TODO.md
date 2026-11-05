@@ -135,7 +135,7 @@ Assumes the planned features are complete. Found by checking the repo on 2026-11
 
 ### Already tracked elsewhere in this file
 
-These production items are open at the end of the file, under Done, and are not repeated here: token refresh, forwarded headers for the rate limiter, registration revealing which emails exist, migrations as a pipeline step, separating the migration role from the runtime role, authorization (roles and policies), the bearer token printing in `ToString()`, and the JSON naming policy in `ErrorKeys`.
+These production items are open at the end of the file, under Done, and are not repeated here: token refresh, forwarded headers for the rate limiter, registration revealing which emails exist, migrations as a pipeline step, separating the migration role from the runtime role, authorization (roles and policies), and the JSON naming policy in `ErrorKeys`.
 
 ---
 
@@ -180,9 +180,8 @@ These production items are open at the end of the file, under Done, and are not 
 - [x] The API connects as a non-superuser role — `grocerease.db-init` (a one-shot compose service running `docker/postgres/init-app-role.sql`) creates `grocerease_app` on every `docker compose up`, sets its password from `APP_DB_PASSWORD`, and makes it the owner of `GrocerEaseDb` and its tables. The role can create the trusted `citext` extension as the database owner, so startup migrations still work. The `postgres` superuser stays for setup and administration; add `APP_DB_PASSWORD` to an existing `.env`
 - [x] The plaintext password no longer appears in `ToString()` — `RegisterCommand`, `LoginCommand`, `RegisterRequest` and `LoginRequest` are records, and a record prints every property, so logging or interpolating one would have written the caller's password out. Each overrides `PrintMembers` and prints `Password = [redacted]`; the other fields still print. `PasswordRedactionTests` checks the four types and also finds, by reflection, any type in Application or Contracts with a password-like property, so a future `ChangePasswordCommand` is covered. Nothing logged one before; this closes the latent path
 - [x] CORS policy for the browser frontend — `Cors:AllowedOrigins` (default `http://localhost:3000` in `appsettings.json`) feeds a `frontend` policy that allows any method and header and exposes `Retry-After`; credentials stay off because auth is a bearer token. `UseCors` runs before the rate limiter and auth, so a preflight needs no token and 401/429 responses stay readable by the frontend. A malformed origin (trailing slash, no scheme, a path) stops the host at startup. `CorsTests` covers it; other environments set `Cors__AllowedOrigins__0`
+- [x] The bearer token no longer appears in `ToString()` — `AuthenticationResult` and `AuthenticationResponse` override `PrintMembers` and print `Token = [redacted]`. `PasswordRedactionTests` now finds, by reflection, any type in Application or Contracts with a password-like or token-like string property, so the refresh token is covered as soon as it exists
 - [x] Test projects added to `GrocerEase.slnx` — `GrocerEase.UnitTests` and `GrocerEase.IntegrationTests` now belong to the solution, so `dotnet test` from the root and IDE test discovery run both. The integration tests need Docker for the Postgres container; skip them with `dotnet test --filter "FullyQualifiedName!~IntegrationTests"`
-
-- [ ] **The bearer token still prints in `ToString()`** — `AuthenticationResult` and `AuthenticationResponse` are records with a `Token` property. A token is a credential until it expires. Redact it the same way, and widen the reflection test in `PasswordRedactionTests` to look for `Token` as well.
 
 - [ ] **Forwarded headers for the rate limiter** — `/auth/*` is limited per socket address. Behind a proxy every client shares one budget until `UseForwardedHeaders` is configured with the proxy's address.
 
