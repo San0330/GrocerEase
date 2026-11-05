@@ -62,6 +62,37 @@ The OpenAPI document is served at `/openapi/v1.json` when the app runs in the De
 
 What is done and what is still open is tracked in [`TODO.md`](TODO.md).
 
+## Observability
+
+**Logs.** The console writes one JSON object per line (plain text in the Development environment). Every request produces one line after it is answered: `POST /auth/login responded 401 in 83.412 ms`, with `Method`, `Route`, `StatusCode` and `ElapsedMs` as fields, and `UserId` when the caller is signed in. `Route` is the route pattern (`/products/{id}`), never the path, and a request that matched no route is `unmatched`, so an id, a token or a scanner's probe does not reach the log. Headers, query strings and bodies are never logged. Passing `/health/*` checks are logged at `Debug`. Each line's `Scopes` carry the `TraceId` and `SpanId`.
+
+**Authentication events.** These have fixed ids, so a query or an alert can name one. They carry ids, an outcome and a reason, never a password, a token or an email address; an email appears only as a 16-character fingerprint, so repeated attempts against one account can be seen.
+
+| Id | Level | Event |
+|---|---|---|
+| 1001 | Information | A user registered |
+| 1002 | Information | A registration was refused because the email is taken |
+| 1003 | Information | A login succeeded |
+| 1004 | Warning | A login failed (`unknown_email` or `wrong_password`; the response never says which) |
+| 1005 | Information | A refresh token was exchanged |
+| 1006 | Information | A refresh was refused (`unknown_token`, `expired_token` or `user_missing`) |
+| 1007 | Warning | A refresh token that had already been replaced was presented again, and its family was revoked |
+| 1008 | Information | A logout |
+| 1009 | Warning | The rate limiter rejected a request, with the path and the client address |
+
+**Correlating an error with its logs.** An error response carries `traceId` as a W3C trace context, `00-<32 hex>-<16 hex>-01`. The `TraceId` in the logs and in the dashboard is the 32-character middle part. Search for that.
+
+**Metrics.** Besides the framework's request and runtime metrics, the `GrocerEase` meter has:
+
+| Metric | Tags | Meaning |
+|---|---|---|
+| `grocerease.auth.attempts` | `operation` (register, login, refresh, logout), `outcome` (success, failure) | Calls to the four endpoints. Failure is not split by reason, so it cannot be used to tell which emails exist |
+| `grocerease.auth.refresh_token_reuse` | none | Refresh tokens presented again after being replaced |
+| `grocerease.auth.ratelimit_rejections` | none | Requests turned away by the rate limiter |
+| `grocerease.password.hash.duration` | `operation` (hash, verify) | Seconds BCrypt took |
+
+**Export.** Traces, metrics and logs are sent over OTLP only when `OTEL_EXPORTER_OTLP_ENDPOINT` is set (for example `http://localhost:4317`); otherwise nothing leaves the process. The service is named `grocerease-api`. `/health/*` is not traced. A collector that is down or unreachable does not affect requests. Running it is described under [Running it](#running-it).
+
 ## Project layout
 
 The solution is `GrocerEase.slnx`, on .NET 10, and follows Clean Architecture. Package versions live in `Directory.Packages.props`; the ones that ship with ASP.NET Core share one `AspNetCoreVersion`, so bump that one number to update them together.
@@ -72,7 +103,7 @@ The solution is `GrocerEase.slnx`, on .NET 10, and follows Clean Architecture. P
 | `GrocerEase.Application` | One handler per use case (`RegisterCommandHandler`, `LoginCommandHandler`), commands, validators, and the interfaces the other layers implement. A validating decorator runs a command's validator before its handler |
 | `GrocerEase.Infrastructure` | EF Core / Npgsql, repositories, BCrypt hashing, JWT generation |
 | `GrocerEase.Contracts` | HTTP request and response shapes |
-| `GrocerEase.Api` | Controllers, the JWT bearer scheme, error handling (one `ApiProblem` writes every error), rate limiting, health endpoints, startup, OpenAPI |
+| `GrocerEase.Api` | Controllers, the JWT bearer scheme, error handling (one `ApiProblem` writes every error), rate limiting, health endpoints, request logging and OpenTelemetry setup, startup, OpenAPI |
 | `GrocerEase.UnitTests` | Services, validators, tokens, controllers, and middleware. No database and no running host |
 | `GrocerEase.IntegrationTests` | Register, login, and profile against the real host and a Postgres 16 container |
 

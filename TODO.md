@@ -34,7 +34,7 @@ The architecture foundation is genuinely good. Most projects at this stage are a
 
 These won't appear on a TODO list but separate very good from excellent:
 
-- **Observability gap** — structured logging exists on exceptions but not on the happy path. No request/response logging, no timing metrics. In production you'd be blind.
+- **Nothing watches the telemetry** — logs, audit events, metrics and traces now exist, and the Aspire Dashboard shows them in development. There are still no alerts, SLOs or runbooks, and no production backend: the dashboard keeps everything in memory.
 - **Only one feature** — Architecture quality is only proven under stress. One entity, one service, two endpoints is too small to know if the patterns hold. The moment you add `Products`, `Orders`, `Categories`, the patterns either prove themselves or show cracks.
 - **No domain model** — `User` is an anemic data bag. The real complexity of a grocery app is in `Order`, `Cart`, `Product` — that's where DDD either pays off or becomes over-engineering.
 - **No CI/CD** — The test projects only run when someone executes `dotnet test` locally. Nothing runs them on push, so this TODO can still drift back to red.
@@ -79,13 +79,15 @@ Assumes the planned features are complete. Found by checking the repo on 2026-11
 
 **Observability**
 
-- [ ] **Structured logging and request logs** — only 4 log calls exist, all in `ErrorHandlingMiddleware`. The handlers log nothing, requests are not logged, and the output is the default console format. Add a structured (JSON) provider with the trace id on every line.
+- [ ] **Alerts, SLOs and runbooks** — alert on the 5xx rate, p95 latency, the failed-login ratio (`grocerease.auth.attempts`) and `/health/ready`, and write a runbook for each alert. The metrics exist; nothing reads them.
 
-- [ ] **Audit events for authentication** — log registration, login success and failure, and rate-limit rejections. A `429` or a failed login leaves no trace today. Never log the password or the token (note 33).
+- [ ] **A production telemetry backend** — the dashboard in `docker-compose.yml` is unsecured, in memory, and bound to loopback. A real deployment needs a collector or hosted backend with retention, an OTLP API key and TLS (`OTEL_EXPORTER_OTLP_HEADERS`), and a sampling decision for traces.
 
-- [ ] **Metrics and traces** — there is no OpenTelemetry. Add ASP.NET Core and EF Core/Npgsql instrumentation with an OTLP exporter: request rate, error rate, latency, DB pool use, BCrypt time. `traceId` is attached only to error responses.
+- [ ] **The response `traceId` and the log `TraceId` differ in form** — error responses carry the full W3C string (`00-<32 hex>-<16 hex>-01`), logs carry the 32-hex part. Returning only the trace id would make them identical but changes the documented error contract.
 
-- [ ] **Alerts, SLOs and runbooks** — alert on the 5xx rate, p95 latency and `/health/ready`, and write a runbook for each alert.
+- [ ] **One reuse incident can log twice** — after a family is revoked, the owner's next attempt with their own (now dead) token logs event 1007 again, with `0 token(s) revoked`. A separate event, or a lower level when nothing was live, would stop it paging twice.
+
+- [ ] **Startup logs an Error on an empty database** — EF logs the failed read of `__EFMigrationsHistory` at Error before `MigrateOnStartup` creates it. It is expected, but it looks like a fault in the first log lines of a new volume.
 
 **Transport and configuration**
 
@@ -184,6 +186,11 @@ These production items are open at the end of the file, under Done, and are not 
 - [x] CORS policy for the browser frontend — `Cors:AllowedOrigins` (default `http://localhost:3000` in `appsettings.json`) feeds a `frontend` policy that allows any method and header and exposes `Retry-After`; credentials stay off because auth is a bearer token. `UseCors` runs before the rate limiter and auth, so a preflight needs no token and 401/429 responses stay readable by the frontend. A malformed origin (trailing slash, no scheme, a path) stops the host at startup. `CorsTests` covers it; other environments set `Cors__AllowedOrigins__0`
 - [x] The bearer token no longer appears in `ToString()` — `AuthenticationResult` and `AuthenticationResponse` override `PrintMembers` and print `Token = [redacted]`. `PasswordRedactionTests` now finds, by reflection, any type in Application or Contracts with a password-like or token-like string property, so the refresh token is covered as soon as it exists
 - [x] Refresh tokens with rotation and reuse detection — register and login return a `refreshToken` beside the JWT. `POST /auth/refresh` revokes it and returns a new pair; presenting a revoked token again revokes the whole family and returns `401 Auth.InvalidRefreshToken`. `POST /auth/logout` revokes the family and always returns `204`. Tokens are 256 random bits and only their SHA-256 hash is stored (`RefreshTokens`, unique on the hash, `xmin` as the row version so two simultaneous refreshes cannot both win: the loser gets `409 Database.ConcurrentUpdate`). Lifetime is `JwtSettings:RefreshTokenExpiryDays` (30). The token is redacted in `ToString()` everywhere it appears. Delivery is the JSON body, so CORS is unchanged
+- [x] One structured log line per request — `RequestLoggingMiddleware` is first in the pipeline and logs method, route pattern, status, elapsed time and the signed-in user id after the response. It never reads headers, query strings or bodies; an unmatched route is logged as `unmatched`; passing `/health/*` is `Debug`. The console is JSON outside Development, with the trace and span id on each line, and EF's SQL command log stays at `Warning`
+- [x] Authentication audit events — fixed ids 1001–1009 for register, login (success and failure), refresh, reuse, logout and rate-limit rejection, written through source-generated `[LoggerMessage]` methods. They carry ids, outcomes and reasons, never a password, token or email (an email is a 16-character SHA-256 fingerprint). An integration test runs the whole flow and fails if any secret appears in anything logged
+- [x] OpenTelemetry traces, metrics and logs — ASP.NET Core, runtime and Npgsql instrumentation under the service name `grocerease-api`, exported over OTLP only when `OTEL_EXPORTER_OTLP_ENDPOINT` is set. `/health/*` is not traced, an unreachable collector never affects a request, and Infrastructure registers the Npgsql part so the Api still never names a database type
+- [x] Application metrics — the `GrocerEase` meter counts register, login, refresh and logout by operation and outcome (never by reason), refresh-token reuse and rate-limit rejections, and times BCrypt hashing and checking in seconds
+- [x] A telemetry dashboard in compose — `grocerease.telemetry` runs the .NET Aspire Dashboard (pinned `13.6.2`), published on `127.0.0.1:18888` only because it runs unsecured; its OTLP port is not published and the API reaches it over the compose network without waiting for it
 - [x] Test projects added to `GrocerEase.slnx` — `GrocerEase.UnitTests` and `GrocerEase.IntegrationTests` now belong to the solution, so `dotnet test` from the root and IDE test discovery run both. The integration tests need Docker for the Postgres container; skip them with `dotnet test --filter "FullyQualifiedName!~IntegrationTests"`
 
 - [ ] **Forwarded headers for the rate limiter** — `/auth/*` is limited per socket address. Behind a proxy every client shares one budget until `UseForwardedHeaders` is configured with the proxy's address.
