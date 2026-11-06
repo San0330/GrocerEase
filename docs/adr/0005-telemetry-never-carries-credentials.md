@@ -36,3 +36,7 @@ is, so a secret that reaches it is exposed far wider. C# records make this easy 
 - The fingerprint is not anonymous against someone who can guess addresses and hash them. It is meant to keep the address
   out of a log, not to defeat a determined attacker who already has candidate emails.
 - What the telemetry says to alert on, and who is paged, is not decided yet (open in `TODO.md`).
+- CodeQL's `cs/exposure-of-sensitive-information` flags the log reason `AuthenticationLog.Reasons.UnknownEmail` because
+  of its name, though its value is the literal `"unknown_email"`. Those two alerts were dismissed as false positives with
+  that explanation. A real hit on this rule means a value derived from an email, a password or a token reached a log, and
+  should be treated as a bug.
