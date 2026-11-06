@@ -36,6 +36,7 @@ Put the reason in the body when the subject cannot carry it.
 - **Lock files.** Every project has a `packages.lock.json`, and CI restores in locked mode. After you change `Directory.Packages.props` or a `PackageReference`, run `dotnet restore` and commit the changed lock files.
 - **Coverage.** CI fails when merged line coverage drops below 80 percent.
 - **Vulnerable packages.** CI fails when a NuGet package has a known advisory.
+- **CodeQL.** Security queries run on every pull request. A hit that is a false positive is dismissed on GitHub with the reason written on the alert, and noted in the relevant ADR.
 - **Image scan.** A pull request that touches code or the `Dockerfile` builds the image and scans it with Trivy. A waiver, with a reason and an end date, goes in `.trivyignore.yaml`.
 
 ## Secrets

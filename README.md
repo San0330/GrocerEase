@@ -167,6 +167,8 @@ The integration tests need Docker running, because they start a Postgres contain
 
 `.github/workflows/image.yml` builds the `Dockerfile`, scans the result with Trivy, and fails on a fixable `HIGH` or `CRITICAL` finding. Findings that are waived, with a reason and an end date, are in `.trivyignore.yaml`. A push to `main` also publishes `ghcr.io/<owner>/grocerease-api` tagged with the commit SHA and `main`. Nothing deploys the image yet.
 
+`.github/workflows/codeql.yml` runs CodeQL's `security-extended` queries on C# for every pull request, every push to `main` and weekly, and reports to the Security tab. `main` is protected: `build-and-test`, `build-scan-push` and `Analyze (csharp)` must pass, and force pushes are blocked.
+
 Base images and workflow actions are pinned by digest or commit SHA, every project has a `packages.lock.json`, and Dependabot opens the pull requests that move them. After changing a package version, run `dotnet restore` and commit the lock files.
 
 ## Contributing and decisions

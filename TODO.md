@@ -67,15 +67,9 @@ Assumes the planned features are complete. Found by checking the repo on 2026-11
 
 **CI/CD**
 
-- [ ] **Make the pipeline checks required** — `CI / build-and-test` and `Image / build-scan-push` passed on GitHub, but a red run does not block a merge. Branch protection is not available while the repository is private on the free plan (the API answers "Upgrade to GitHub Pro or make this repository public"). Make the repository public or upgrade, then require both checks.
-
 - [ ] **The image has no deploy step** — `image.yml` publishes `ghcr.io/<owner>/grocerease-api:<sha>` and `:main`, and nothing runs it yet. Also: no signing or provenance (cosign, SBOM), and no `.trivyignore.yaml` review reminder beyond its 2026-12-06 expiry.
 
 - [ ] **A deploy target and environments** — compose is the only runtime. Choose a platform, then add staging and production with approvals, infrastructure as code, per-environment configuration, a secrets manager (today: `.env` and user secrets), TLS termination, and a rollback plan.
-
-- [ ] **CodeQL and secret scanning** — CodeQL and GitHub secret scanning need a public repository or GitHub Advanced Security, so neither is set up. Everything else from static analysis is done (see Done).
-
-- [ ] **Scan commits for secrets** — Dependabot (NuGet, Docker, Actions) and the CI vulnerability check are done. A secret scanner still needs a public repository, or a tool that runs in CI such as gitleaks.
 
 **Observability**
 
@@ -201,6 +195,11 @@ These production items are open at the end of the file, under Done, and are not 
 - [x] Coverage gate — unit and integration coverage are merged with ReportGenerator (pinned in `.config/dotnet-tools.json`) and CI fails below 80 percent line coverage (83.9 when set). Migrations and the test projects are excluded
 - [x] Vulnerable-package check — CI fails when `dotnet list package --vulnerable --include-transitive` reports an advisory, on every push and weekly. Dependabot also watches NuGet
 - [x] Repository documents — `LICENSE` (MIT), `SECURITY.md`, `CONTRIBUTING.md`, `.github/CODEOWNERS`, a pull request template, and six ADRs in `docs/adr` covering the layering, refresh tokens, the auth rate limit, the error contract, telemetry without credentials, and startup migrations
+
+- [x] The repository is public, and its security features are on — secret scanning with push protection (a history scan found nothing), Dependabot alerts and security updates, and private vulnerability reporting, which `SECURITY.md` relies on. History was audited first: it holds only placeholder development values (the old JWT placeholder and the `postgres` compose password) and the author's git email
+- [x] CodeQL — `.github/workflows/codeql.yml` analyses C# with the `security-extended` queries on every pull request, push to `main` and weekly. Its first run raised two alerts on `AuthenticationLog.Reasons.UnknownEmail`, dismissed as false positives because they matched the constant's name; its value is the literal `"unknown_email"` (ADR 0005)
+- [x] Branch protection on `main` — `build-and-test`, `build-scan-push` and `Analyze (csharp)` are required checks, and force pushes and deletion are blocked. Admins can still push directly, and no review is required, because one person owns the repository. Require a pull request and a review, and turn on `enforce_admins`, when a second person joins
+- [x] ASP.NET Core packages at 10.0.14 and `coverlet.collector` at 10.1.0 — the first Dependabot pull requests failed locked-mode restore because Dependabot regenerates only some lock files, so the bump was made by hand. Dependabot now groups the ASP.NET Core and EF Core packages into one pull request
 
 - [ ] **Forwarded headers for the rate limiter** — `/auth/*` is limited per socket address. Behind a proxy every client shares one budget until `UseForwardedHeaders` is configured with the proxy's address.
 
