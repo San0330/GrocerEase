@@ -37,7 +37,7 @@ These won't appear on a TODO list but separate very good from excellent:
 - **Nothing watches the telemetry** — logs, audit events, metrics and traces now exist, and the Aspire Dashboard shows them in development. There are still no alerts, SLOs or runbooks, and no production backend: the dashboard keeps everything in memory.
 - **Only one feature** — Architecture quality is only proven under stress. One entity, one service, two endpoints is too small to know if the patterns hold. The moment you add `Products`, `Orders`, `Categories`, the patterns either prove themselves or show cracks.
 - **No domain model** — `User` is an anemic data bag. The real complexity of a grocery app is in `Order`, `Cart`, `Product` — that's where DDD either pays off or becomes over-engineering.
-- **CI is written but unproven, and there is no CD** — `.github/workflows` runs the tests and publishes a scanned image, but GitHub has not run them yet, and no environment deploys the image.
+- **There is CI but no CD** — `.github/workflows` runs the tests and publishes a scanned image (both green on GitHub since commit `84f783b`), but no environment deploys the image.
 
 ---
 
@@ -67,7 +67,7 @@ Assumes the planned features are complete. Found by checking the repo on 2026-11
 
 **CI/CD**
 
-- [ ] **Publish step is untested until the first push to `main`** — `ci.yml` and `image.yml` were checked by running their commands locally; GitHub has not run them yet. Confirm both are green, then make `CI / build-and-test` and `Image / build-scan-push` required checks in branch protection.
+- [ ] **Make the pipeline checks required** — `CI / build-and-test` and `Image / build-scan-push` passed on GitHub for `84f783b`, but without branch protection on `main` a red run does not block a merge. This is a repository setting, not a file.
 
 - [ ] **The image has no deploy step** — `image.yml` publishes `ghcr.io/<owner>/grocerease-api:<sha>` and `:main`, and nothing runs it yet. Also: no signing or provenance (cosign, SBOM), and no `.trivyignore.yaml` review reminder beyond its 2026-12-06 expiry.
 
