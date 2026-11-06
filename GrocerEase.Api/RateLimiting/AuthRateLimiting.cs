@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Threading.RateLimiting;
 using GrocerEase.Api.Errors;
 using GrocerEase.Application.Common.Telemetry;
@@ -52,7 +53,7 @@ public static partial class AuthRateLimiting
 
         if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
         {
-            response.Headers.RetryAfter = ((int)Math.Ceiling(retryAfter.TotalSeconds)).ToString();
+            response.Headers.RetryAfter = ((int)Math.Ceiling(retryAfter.TotalSeconds)).ToString(CultureInfo.InvariantCulture);
         }
 
         // The caller's address and the endpoint, nothing from the body: only /auth/* is limited, so the path is one of a

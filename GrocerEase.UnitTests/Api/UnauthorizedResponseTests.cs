@@ -34,7 +34,7 @@ public class UnauthorizedResponseTests
     [Fact]
     public async Task WriteAsync_WhenATokenWasRejected_FlagsItAsInvalidWithoutSayingWhy()
     {
-        var (context, challenge) = ChallengeWith(authenticateFailure: new Exception("IDX10223: Lifetime validation failed."));
+        var (context, challenge) = ChallengeWith(authenticateFailure: new InvalidOperationException("IDX10223: Lifetime validation failed."));
 
         await UnauthorizedResponse.WriteAsync(challenge);
 

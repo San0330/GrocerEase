@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 
 namespace GrocerEase.Application.Authentication.Commands;
@@ -12,7 +13,7 @@ public record RegisterCommand(
     // plaintext password out. Everything else is still printed; PasswordRedactionTests keeps it that way.
     protected virtual bool PrintMembers(StringBuilder builder)
     {
-        builder.Append($"FirstName = {FirstName}, LastName = {LastName}, Email = {Email}, Password = [redacted]");
+        builder.Append(CultureInfo.InvariantCulture, $"FirstName = {FirstName}, LastName = {LastName}, Email = {Email}, Password = [redacted]");
         return true;
     }
 }

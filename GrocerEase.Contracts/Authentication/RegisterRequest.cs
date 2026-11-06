@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 
 namespace GrocerEase.Contracts.Authentication;
@@ -12,7 +13,7 @@ public record RegisterRequest(
     // logs or interpolates the request. JSON binding and serialisation do not use ToString, so the contract is unchanged.
     protected virtual bool PrintMembers(StringBuilder builder)
     {
-        builder.Append($"FirstName = {FirstName}, LastName = {LastName}, Email = {Email}, Password = [redacted]");
+        builder.Append(CultureInfo.InvariantCulture, $"FirstName = {FirstName}, LastName = {LastName}, Email = {Email}, Password = [redacted]");
         return true;
     }
 }

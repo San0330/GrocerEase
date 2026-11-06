@@ -21,7 +21,7 @@ public class ConcurrentUpdateExceptionTests
     [Fact]
     public void KeepsTheOriginalFailureAsTheInnerException()
     {
-        var inner = new Exception("original");
+        var inner = new InvalidOperationException("original");
 
         Assert.Same(inner, new ConcurrentUpdateException(inner).InnerException);
     }

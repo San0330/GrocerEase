@@ -219,7 +219,7 @@ public class ErrorHandlingMiddlewareTests
         context.Response.Body.Position = 0;
         JsonDocument? body = context.Response.Body.Length == 0
             ? null
-            : await JsonDocument.ParseAsync(context.Response.Body);
+            : await JsonDocument.ParseAsync(context.Response.Body, cancellationToken: CancellationToken.None);
 
         return new ErrorResult(context.Response.StatusCode, context.Response.ContentType, body);
     }

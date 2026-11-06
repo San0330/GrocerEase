@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using GrocerEase.Domain.Entities;
 
@@ -17,7 +18,7 @@ public record AuthenticationResult(
     // A bearer token and a refresh token are credentials until it expires, and a record's generated ToString would print it.
     protected virtual bool PrintMembers(StringBuilder builder)
     {
-        builder.Append($"Id = {Id}, FirstName = {FirstName}, LastName = {LastName}, Email = {Email}, Token = [redacted], RefreshToken = [redacted]");
+        builder.Append(CultureInfo.InvariantCulture, $"Id = {Id}, FirstName = {FirstName}, LastName = {LastName}, Email = {Email}, Token = [redacted], RefreshToken = [redacted]");
         return true;
     }
 }

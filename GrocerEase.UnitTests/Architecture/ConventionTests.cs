@@ -58,7 +58,7 @@ public class ConventionTests
         var misplaced = new[] { Layers.DomainAssembly, Layers.ApplicationAssembly }
             .SelectMany(assembly => assembly.GetTypes())
             .Where(type => type is { IsClass: true, IsAbstract: false } && typeof(IAppException).IsAssignableFrom(type))
-            .Where(type => !homes.Contains(type.Namespace) || !type.Name.EndsWith("Exception") || !typeof(Exception).IsAssignableFrom(type))
+            .Where(type => !homes.Contains(type.Namespace) || !type.Name.EndsWith("Exception", StringComparison.Ordinal) || !typeof(Exception).IsAssignableFrom(type))
             .Select(type => type.FullName)
             .ToArray();
 

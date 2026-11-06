@@ -1,4 +1,5 @@
 using System.Diagnostics.Metrics;
+using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
 using GrocerEase.Api.Errors;
@@ -33,7 +34,7 @@ public sealed class RateLimitTests : IDisposable
                 ["JwtSettings:Issuer"] = "GrocerEase",
                 ["JwtSettings:Audience"] = "GrocerEase",
                 ["JwtSettings:ExpiryMinutes"] = "60",
-                ["RateLimiting:Auth:PermitLimit"] = PermitLimit.ToString(),
+                ["RateLimiting:Auth:PermitLimit"] = PermitLimit.ToString(CultureInfo.InvariantCulture),
                 ["RateLimiting:Auth:WindowSeconds"] = "60",
             }));
             builder.ConfigureLogging(logging => logging.AddFakeLogging());
@@ -60,7 +61,7 @@ public sealed class RateLimitTests : IDisposable
 
         Assert.Equal(HttpStatusCode.TooManyRequests, limited.StatusCode);
         Assert.StartsWith("application/problem+json", limited.Content.Headers.ContentType?.MediaType);
-        Assert.True(int.Parse(limited.Headers.GetValues("Retry-After").Single()) is > 0 and <= 60);
+        Assert.True(int.Parse(limited.Headers.GetValues("Retry-After").Single(), CultureInfo.InvariantCulture) is > 0 and <= 60);
 
         var problem = (await limited.Content.ReadFromJsonAsync<ErrorResponse>(System.Text.Json.JsonSerializerOptions.Web))!;
         Assert.Equal(ApiErrorCodes.RateLimited, problem.Code);

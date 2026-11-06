@@ -1,3 +1,4 @@
+using System.Globalization;
 using GrocerEase.Infrastructure.Authentication;
 using GrocerEase.UnitTests.Support;
 using Microsoft.Extensions.Configuration;
@@ -71,7 +72,7 @@ public sealed class PasswordHasherTests : IDisposable
     {
         var configuration = new Dictionary<string, string?>
         {
-            [$"{PasswordHashingSettings.SectionName}:Cost"] = cost.ToString(),
+            [$"{PasswordHashingSettings.SectionName}:Cost"] = cost.ToString(CultureInfo.InvariantCulture),
         };
 
         var exception = Assert.Throws<OptionsValidationException>(() => Bind(configuration));

@@ -20,7 +20,11 @@ public abstract class IntegrationTest : IDisposable
 
     protected HttpClient Client { get; }
 
-    public void Dispose() => Client.Dispose();
+    public void Dispose()
+    {
+        Client.Dispose();
+        GC.SuppressFinalize(this);
+    }
 
     protected static string UniqueEmail() => $"{Guid.NewGuid():N}@example.com";
 

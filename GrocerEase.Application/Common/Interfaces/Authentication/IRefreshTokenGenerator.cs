@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 
 namespace GrocerEase.Application.Common.Interfaces.Authentication;
@@ -17,7 +18,7 @@ public record IssuedRefreshToken(string Token, string Hash, DateTime ExpiresAt)
     // The token is a credential until it expires, and a record's generated ToString would print it.
     protected virtual bool PrintMembers(StringBuilder builder)
     {
-        builder.Append($"Token = [redacted], Hash = {Hash}, ExpiresAt = {ExpiresAt:O}");
+        builder.Append(CultureInfo.InvariantCulture, $"Token = [redacted], Hash = {Hash}, ExpiresAt = {ExpiresAt:O}");
         return true;
     }
 }

@@ -10,4 +10,18 @@
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
   </PropertyGroup>
 
+  <!--
+    Static analysis. The Recommended rule set runs on every build, and a warning fails it, so one cannot pile up unseen.
+    Rules that are switched off or relaxed are listed with their reasons in .editorconfig.
+    NuGet audit warnings (NU1901 to NU1904) stay warnings: a new advisory must not break an unrelated change.
+    CI reports them separately.
+  -->
+  <PropertyGroup>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <AnalysisMode>Recommended</AnalysisMode>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <WarningsNotAsErrors>NU1901;NU1902;NU1903;NU1904</WarningsNotAsErrors>
+  </PropertyGroup>
+
 </Project>
