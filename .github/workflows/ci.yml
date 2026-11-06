@@ -37,6 +37,7 @@ jobs:
         run: >
           dotnet test --configuration Release --no-build
           --filter "FullyQualifiedName!~IntegrationTests"
+          --collect:"XPlat Code Coverage"
           --logger "trx;LogFileName=unit.trx" --results-directory TestResults
 
       # ubuntu-latest has Docker, which Testcontainers uses to start Postgres 16.
@@ -44,12 +45,33 @@ jobs:
         run: >
           dotnet test --configuration Release --no-build
           --filter "FullyQualifiedName~IntegrationTests"
+          --collect:"XPlat Code Coverage"
           --logger "trx;LogFileName=integration.trx" --results-directory TestResults
+
+      # Unit and integration tests cover different lines, so their reports are merged before the threshold applies.
+      # Migrations are generated code and the test projects are not product code, so neither counts.
+      - name: Coverage
+        env:
+          MIN_LINE_COVERAGE: "80"
+        run: |
+          dotnet tool restore
+          dotnet reportgenerator \
+            -reports:"TestResults/**/coverage.cobertura.xml" \
+            -targetdir:CoverageReport \
+            -reporttypes:"JsonSummary;MarkdownSummaryGithub" \
+            -assemblyfilters:"+GrocerEase.*;-GrocerEase.UnitTests;-GrocerEase.IntegrationTests" \
+            -classfilters:"-GrocerEase.Infrastructure.Migrations.*"
+          cat CoverageReport/SummaryGithub.md >> "$GITHUB_STEP_SUMMARY"
+          line=$(jq '.summary.linecoverage' CoverageReport/Summary.json)
+          echo "Line coverage: ${line}% (minimum ${MIN_LINE_COVERAGE}%)"
+          awk -v got="$line" -v min="$MIN_LINE_COVERAGE" 'BEGIN { exit !(got + 0 >= min + 0) }'
 
       - name: Upload test results
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: test-results
-          path: TestResults/*.trx
+          path: |
+            TestResults/*.trx
+            CoverageReport/
           if-no-files-found: ignore
