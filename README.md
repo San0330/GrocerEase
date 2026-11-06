@@ -163,11 +163,15 @@ The integration tests need Docker running, because they start a Postgres contain
 
 ## CI/CD
 
-`.github/workflows/ci.yml` runs on every pull request and every push to `main`: restore, build in Release, the unit tests, then the integration tests (the runner's Docker daemon hosts the Postgres container). Test results are attached to the run as `.trx` files.
+`.github/workflows/ci.yml` runs on every pull request, every push to `main`, and weekly: restore in locked mode, build in Release (the analyzers run here and a warning fails the build), a check for vulnerable NuGet packages, the unit tests, then the integration tests (the runner's Docker daemon hosts the Postgres container). Merged line coverage must stay at 80 percent or more. Test results and the coverage report are attached to the run.
 
 `.github/workflows/image.yml` builds the `Dockerfile`, scans the result with Trivy, and fails on a fixable `HIGH` or `CRITICAL` finding. Findings that are waived, with a reason and an end date, are in `.trivyignore.yaml`. A push to `main` also publishes `ghcr.io/<owner>/grocerease-api` tagged with the commit SHA and `main`. Nothing deploys the image yet.
 
-Base images and workflow actions are pinned by digest or commit SHA; Dependabot opens the pull requests that move them.
+Base images and workflow actions are pinned by digest or commit SHA, every project has a `packages.lock.json`, and Dependabot opens the pull requests that move them. After changing a package version, run `dotnet restore` and commit the lock files.
+
+## Contributing and decisions
+
+[`CONTRIBUTING.md`](CONTRIBUTING.md) describes the workflow and what the build enforces, [`SECURITY.md`](SECURITY.md) how to report a vulnerability, and [`docs/adr`](docs/adr) why the code is shaped as it is. The project is released under the [MIT License](LICENSE).
 
 ## Notes
 

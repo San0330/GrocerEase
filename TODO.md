@@ -15,7 +15,7 @@ The architecture foundation is genuinely good. Most projects at this stage are a
 | Right now | **8.0** | Auth is tested, and the service commits through `IUnitOfWork`. Tokens refresh with rotation |
 | TODO list done | **8.5** | Production-ready auth service |
 | + Observability + more features | **9.0** | Proven at scale |
-| + DDD domain model + CI/CD | **9.5** | Senior-level codebase |
+| + DDD domain model + CI/CD | **9.5** | Senior-level codebase. CI, the image pipeline, analyzers, lock files and ADRs exist; the domain model and a deploy do not |
 
 > 10 / 10 doesn't exist — every codebase has tradeoffs. 9.5 is the practical ceiling for a real project.
 
@@ -67,15 +67,15 @@ Assumes the planned features are complete. Found by checking the repo on 2026-11
 
 **CI/CD**
 
-- [ ] **Make the pipeline checks required** — `CI / build-and-test` and `Image / build-scan-push` passed on GitHub for `84f783b`, but without branch protection on `main` a red run does not block a merge. This is a repository setting, not a file.
+- [ ] **Make the pipeline checks required** — `CI / build-and-test` and `Image / build-scan-push` passed on GitHub, but a red run does not block a merge. Branch protection is not available while the repository is private on the free plan (the API answers "Upgrade to GitHub Pro or make this repository public"). Make the repository public or upgrade, then require both checks.
 
 - [ ] **The image has no deploy step** — `image.yml` publishes `ghcr.io/<owner>/grocerease-api:<sha>` and `:main`, and nothing runs it yet. Also: no signing or provenance (cosign, SBOM), and no `.trivyignore.yaml` review reminder beyond its 2026-12-06 expiry.
 
 - [ ] **A deploy target and environments** — compose is the only runtime. Choose a platform, then add staging and production with approvals, infrastructure as code, per-environment configuration, a secrets manager (today: `.env` and user secrets), TLS termination, and a rollback plan.
 
-- [ ] **Static analysis and build hygiene** — there is no `.editorconfig`, `global.json`, `Directory.Build.props`, analyzer set or warnings-as-errors. Pin the SDK (`ci.yml` installs `10.0.x`), enable analyzers, add CodeQL, and publish coverage (`coverlet.collector` is referenced but never run).
+- [ ] **CodeQL and secret scanning** — CodeQL and GitHub secret scanning need a public repository or GitHub Advanced Security, so neither is set up. Everything else from static analysis is done (see Done).
 
-- [ ] **Dependency and secret scanning** — a NuGet scan on 2026-11-03 found no vulnerable or deprecated packages, but that was a one-off. Dependabot now watches the Dockerfile and the workflow actions, but not NuGet. Add the `nuget` ecosystem, `dotnet list package --vulnerable` in CI, and secret scanning.
+- [ ] **Scan commits for secrets** — Dependabot (NuGet, Docker, Actions) and the CI vulnerability check are done. A secret scanner still needs a public repository, or a tool that runs in CI such as gitleaks.
 
 **Observability**
 
@@ -195,6 +195,12 @@ These production items are open at the end of the file, under Done, and are not 
 
 - [x] CI pipeline — `.github/workflows/ci.yml` restores, builds in Release, and runs the unit tests and the Docker-backed integration tests on every pull request and push to `main`. Read-only token, actions pinned by commit SHA, newer runs cancel older ones, `.trx` results uploaded
 - [x] Container image pipeline — `.github/workflows/image.yml` builds the image on pull requests that touch code or the Dockerfile, scans it with Trivy (fails on fixable HIGH/CRITICAL), and on `main` pushes it to GHCR tagged by commit and `main`. The base images are pinned by digest, Dependabot proposes new digests and action versions, and the image carries its own `HEALTHCHECK`. One apt finding in Microsoft's base is waived in `.trivyignore.yaml` until 2026-12-06
+
+- [x] Build hygiene — `global.json` pins the SDK to the 10.0 line, `.editorconfig` sets formatting, and `Directory.Build.props` runs the Recommended analyzers on every build with warnings as errors. Rules that do not fit (test method names, logging performance advice) are switched off in `.editorconfig` with a reason. Fixing the first run's findings made `Retry-After` and the redacted `ToString()` output independent of the server's locale
+- [x] NuGet lock files — every project has a `packages.lock.json`; CI and the Dockerfile restore in locked mode, so a version change that forgets the lock files fails with `NU1004`
+- [x] Coverage gate — unit and integration coverage are merged with ReportGenerator (pinned in `.config/dotnet-tools.json`) and CI fails below 80 percent line coverage (83.9 when set). Migrations and the test projects are excluded
+- [x] Vulnerable-package check — CI fails when `dotnet list package --vulnerable --include-transitive` reports an advisory, on every push and weekly. Dependabot also watches NuGet
+- [x] Repository documents — `LICENSE` (MIT), `SECURITY.md`, `CONTRIBUTING.md`, `.github/CODEOWNERS`, a pull request template, and six ADRs in `docs/adr` covering the layering, refresh tokens, the auth rate limit, the error contract, telemetry without credentials, and startup migrations
 
 - [ ] **Forwarded headers for the rate limiter** — `/auth/*` is limited per socket address. Behind a proxy every client shares one budget until `UseForwardedHeaders` is configured with the proxy's address.
 
