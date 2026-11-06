@@ -37,7 +37,7 @@ These won't appear on a TODO list but separate very good from excellent:
 - **Nothing watches the telemetry** — logs, audit events, metrics and traces now exist, and the Aspire Dashboard shows them in development. There are still no alerts, SLOs or runbooks, and no production backend: the dashboard keeps everything in memory.
 - **Only one feature** — Architecture quality is only proven under stress. One entity, one service, two endpoints is too small to know if the patterns hold. The moment you add `Products`, `Orders`, `Categories`, the patterns either prove themselves or show cracks.
 - **No domain model** — `User` is an anemic data bag. The real complexity of a grocery app is in `Order`, `Cart`, `Product` — that's where DDD either pays off or becomes over-engineering.
-- **No CI/CD** — The test projects only run when someone executes `dotnet test` locally. Nothing runs them on push, so this TODO can still drift back to red.
+- **CI is written but unproven, and there is no CD** — `.github/workflows` runs the tests and publishes a scanned image, but GitHub has not run them yet, and no environment deploys the image.
 
 ---
 
@@ -67,15 +67,15 @@ Assumes the planned features are complete. Found by checking the repo on 2026-11
 
 **CI/CD**
 
-- [ ] **CI pipeline** — build, unit tests, and the Docker-backed integration tests on every PR and on `main`. Nothing runs the 169 unit and 39 integration tests automatically today; every check so far was run by hand.
+- [ ] **Publish step is untested until the first push to `main`** — `ci.yml` and `image.yml` were checked by running their commands locally; GitHub has not run them yet. Confirm both are green, then make `CI / build-and-test` and `Image / build-scan-push` required checks in branch protection.
 
-- [ ] **Container image pipeline** — build and push an image tagged by commit, scan it (Trivy or similar), and pin the base images by digest (`Dockerfile` uses the floating tags `sdk:10.0` and `aspnet:10.0`). Add a `HEALTHCHECK` to the image; it exists only in `docker-compose.yml`.
+- [ ] **The image has no deploy step** — `image.yml` publishes `ghcr.io/<owner>/grocerease-api:<sha>` and `:main`, and nothing runs it yet. Also: no signing or provenance (cosign, SBOM), and no `.trivyignore.yaml` review reminder beyond its 2026-12-06 expiry.
 
 - [ ] **A deploy target and environments** — compose is the only runtime. Choose a platform, then add staging and production with approvals, infrastructure as code, per-environment configuration, a secrets manager (today: `.env` and user secrets), TLS termination, and a rollback plan.
 
-- [ ] **Static analysis and build hygiene** — there is no `.editorconfig`, `global.json`, `Directory.Build.props`, analyzer set or warnings-as-errors. Pin the SDK, enable analyzers, add CodeQL, and publish coverage (`coverlet.collector` is referenced but never run).
+- [ ] **Static analysis and build hygiene** — there is no `.editorconfig`, `global.json`, `Directory.Build.props`, analyzer set or warnings-as-errors. Pin the SDK (`ci.yml` installs `10.0.x`), enable analyzers, add CodeQL, and publish coverage (`coverlet.collector` is referenced but never run).
 
-- [ ] **Dependency and secret scanning** — a NuGet scan on 2026-11-03 found no vulnerable or deprecated packages, but that was a one-off. Automate it (Dependabot or Renovate, `dotnet list package --vulnerable` in CI) and add secret scanning.
+- [ ] **Dependency and secret scanning** — a NuGet scan on 2026-11-03 found no vulnerable or deprecated packages, but that was a one-off. Dependabot now watches the Dockerfile and the workflow actions, but not NuGet. Add the `nuget` ecosystem, `dotnet list package --vulnerable` in CI, and secret scanning.
 
 **Observability**
 
@@ -192,6 +192,9 @@ These production items are open at the end of the file, under Done, and are not 
 - [x] Application metrics — the `GrocerEase` meter counts register, login, refresh and logout by operation and outcome (never by reason), refresh-token reuse and rate-limit rejections, and times BCrypt hashing and checking in seconds
 - [x] A telemetry dashboard in compose — `grocerease.telemetry` runs the .NET Aspire Dashboard (pinned `13.6.2`), published on `127.0.0.1:18888` only because it runs unsecured; its OTLP port is not published and the API reaches it over the compose network without waiting for it
 - [x] Test projects added to `GrocerEase.slnx` — `GrocerEase.UnitTests` and `GrocerEase.IntegrationTests` now belong to the solution, so `dotnet test` from the root and IDE test discovery run both. The integration tests need Docker for the Postgres container; skip them with `dotnet test --filter "FullyQualifiedName!~IntegrationTests"`
+
+- [x] CI pipeline — `.github/workflows/ci.yml` restores, builds in Release, and runs the unit tests and the Docker-backed integration tests on every pull request and push to `main`. Read-only token, actions pinned by commit SHA, newer runs cancel older ones, `.trx` results uploaded
+- [x] Container image pipeline — `.github/workflows/image.yml` builds the image on pull requests that touch code or the Dockerfile, scans it with Trivy (fails on fixable HIGH/CRITICAL), and on `main` pushes it to GHCR tagged by commit and `main`. The base images are pinned by digest, Dependabot proposes new digests and action versions, and the image carries its own `HEALTHCHECK`. One apt finding in Microsoft's base is waived in `.trivyignore.yaml` until 2026-12-06
 
 - [ ] **Forwarded headers for the rate limiter** — `/auth/*` is limited per socket address. Behind a proxy every client shares one budget until `UseForwardedHeaders` is configured with the proxy's address.
 

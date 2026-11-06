@@ -161,6 +161,14 @@ The integration tests need Docker running, because they start a Postgres contain
 
 `GrocerEase.UnitTests/Architecture` holds the architecture tests: the layer dependency rule (Domain depends on nothing, Application only on Domain, Api never touches EF Core) and a few conventions (sealed handlers, no public setters on entities). If one fails, a layer reached somewhere it should not; read its message before changing the test.
 
+## CI/CD
+
+`.github/workflows/ci.yml` runs on every pull request and every push to `main`: restore, build in Release, the unit tests, then the integration tests (the runner's Docker daemon hosts the Postgres container). Test results are attached to the run as `.trx` files.
+
+`.github/workflows/image.yml` builds the `Dockerfile`, scans the result with Trivy, and fails on a fixable `HIGH` or `CRITICAL` finding. Findings that are waived, with a reason and an end date, are in `.trivyignore.yaml`. A push to `main` also publishes `ghcr.io/<owner>/grocerease-api` tagged with the commit SHA and `main`. Nothing deploys the image yet.
+
+Base images and workflow actions are pinned by digest or commit SHA; Dependabot opens the pull requests that move them.
+
 ## Notes
 
 The learning notes for this project are not in the repository. They live in an Obsidian vault on the author's machine:
