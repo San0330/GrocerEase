@@ -45,6 +45,11 @@ COPY --from=build /app/publish .
 # Expose port 8080 (ASP.NET Core default in containers)
 EXPOSE 8080
 
+# The aspnet image has no curl, so the check opens a socket from bash and reads the status line of /health/ready.
+# docker-compose.yml repeats it with its own timings; an orchestrator that reads the image gets this one.
+HEALTHCHECK --interval=10s --timeout=5s --start-period=20s --retries=5 \
+    CMD ["bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080 && printf 'GET /health/ready HTTP/1.0\\r\\n\\r\\n' >&3 && head -n 1 <&3 | grep -q ' 200 '"]
+
 # Run as the non-root user the base image provides (APP_UID), so a compromised process is not root in the container.
 # Port 8080 is above 1024, so no privilege is needed to listen on it.
 USER $APP_UID
