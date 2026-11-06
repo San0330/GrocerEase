@@ -7,18 +7,21 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0@sha256:212fe4cb74627d5adf9817a4088906ae3e
 # Set the working directory inside the container
 WORKDIR /src
 
-# Package versions are central, so restore needs this file next to the project files.
-COPY Directory.Packages.props .
+# Package versions are central, so restore needs these files next to the project files.
+# Directory.Build.props switches the lock files on.
+COPY Directory.Packages.props Directory.Build.props ./
 
 # Copy all project files first (for layer caching — avoids re-restoring on code-only changes)
-COPY GrocerEase.Api/GrocerEase.Api.csproj             GrocerEase.Api/
-COPY GrocerEase.Application/GrocerEase.Application.csproj   GrocerEase.Application/
-COPY GrocerEase.Domain/GrocerEase.Domain.csproj           GrocerEase.Domain/
-COPY GrocerEase.Infrastructure/GrocerEase.Infrastructure.csproj GrocerEase.Infrastructure/
-COPY GrocerEase.Contracts/GrocerEase.Contracts.csproj       GrocerEase.Contracts/
+# Each project's lock file travels with it, so the restore below can run in locked mode.
+COPY GrocerEase.Api/GrocerEase.Api.csproj GrocerEase.Api/packages.lock.json GrocerEase.Api/
+COPY GrocerEase.Application/GrocerEase.Application.csproj GrocerEase.Application/packages.lock.json GrocerEase.Application/
+COPY GrocerEase.Domain/GrocerEase.Domain.csproj GrocerEase.Domain/packages.lock.json GrocerEase.Domain/
+COPY GrocerEase.Infrastructure/GrocerEase.Infrastructure.csproj GrocerEase.Infrastructure/packages.lock.json GrocerEase.Infrastructure/
+COPY GrocerEase.Contracts/GrocerEase.Contracts.csproj GrocerEase.Contracts/packages.lock.json GrocerEase.Contracts/
 
-# Restore NuGet dependencies for the API project (pulls in all referenced projects too)
-RUN dotnet restore GrocerEase.Api/GrocerEase.Api.csproj
+# Restore NuGet dependencies for the API project (pulls in all referenced projects too).
+# Locked mode fails the build if a lock file is out of date, rather than restoring different versions.
+RUN dotnet restore GrocerEase.Api/GrocerEase.Api.csproj --locked-mode
 
 # Copy the rest of the source code
 COPY . .

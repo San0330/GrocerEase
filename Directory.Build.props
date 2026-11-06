@@ -1,0 +1,13 @@
+<Project>
+
+  <!--
+    Settings every project shares.
+    Lock files record the exact version of every package, direct and transitive, so CI and the image restore
+    the graph a developer tested. a restore in locked mode (CI and the Dockerfile) fails if a lock file is out of date.
+    After changing Directory.Packages.props or a PackageReference, run `dotnet restore` and commit the changed lock files.
+  -->
+  <PropertyGroup>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+  </PropertyGroup>
+
+</Project>
