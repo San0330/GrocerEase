@@ -1,0 +1,8 @@
+# Findings the image scan in .github/workflows/image.yml is told to accept. Each one needs a reason and an end date,
+# so a waiver cannot outlive the problem. An expired entry stops matching and the scan fails again.
+vulnerabilities:
+  # apt in the Ubuntu layer of mcr.microsoft.com/dotnet/aspnet:10.0. Ubuntu fixed it in 2.8.4ubuntu0.1, but Microsoft's
+  # image still ships 2.8.3 (checked 2026-11-06). The app never runs apt; remove this once a rebuilt base image lands.
+  - id: CVE-2026-109518
+    statement: Base image has not picked up the Ubuntu fix; apt is not used at runtime.
+    expired_at: 2026-12-06
