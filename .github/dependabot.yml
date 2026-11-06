@@ -1,0 +1,13 @@
+version: 2
+updates:
+  # The Dockerfile pins its base images by digest, so a new digest needs a pull request to land.
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+
+  # Workflow actions are pinned by commit SHA for the same reason.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

@@ -2,7 +2,7 @@
 # Stage 1: Build
 # Use the full .NET SDK image to restore and build the app
 # ─────────────────────────────────────────────
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0@sha256:212fe4cb74627d5adf9817a4088906ae3edff1bd853bb27565d4b46731efe61e AS build
 
 # Set the working directory inside the container
 WORKDIR /src
@@ -34,7 +34,7 @@ RUN dotnet publish GrocerEase.Api/GrocerEase.Api.csproj \
 # Stage 2: Runtime
 # Use the smaller ASP.NET runtime image (no SDK, smaller attack surface)
 # ─────────────────────────────────────────────
-FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:10.0@sha256:1a48394b6f29d3a32c79d9edecd4abda0ecbe8776d567dbfc4590ed6979c740c AS runtime
 
 # Set the working directory for the running app
 WORKDIR /app
