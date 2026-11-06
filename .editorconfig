@@ -1,0 +1,38 @@
+root = true
+
+[*]
+indent_style = space
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.{cs,json,md,sh,sql}]
+indent_size = 4
+
+[*.{csproj,props,slnx,yml,yaml,xml}]
+indent_size = 2
+
+[*.md]
+trim_trailing_whitespace = false
+
+# ── Analyzer rules ───────────────────────────────────────────────────────────
+# Directory.Build.props runs the "Recommended" analyzer set and treats warnings as errors, so a rule that is not
+# wanted here is switched off below with its reason, instead of being left to fail the build.
+[*.cs]
+
+# Test methods are named Method_Condition_Result, which this naming rule forbids.
+dotnet_diagnostic.CA1707.severity = none
+
+# Both are performance advice for hot paths. Logging here is not one, and the authentication audit events already
+# use source-generated [LoggerMessage] methods where it matters.
+dotnet_diagnostic.CA1848.severity = suggestion
+dotnet_diagnostic.CA1873.severity = suggestion
+
+# IAppException is an interface that marks an exception; the name says what it is.
+dotnet_diagnostic.CA1711.severity = suggestion
+
+# Tests can read better with an instance helper, a constant array or an interface-typed parameter.
+[{GrocerEase.UnitTests,GrocerEase.IntegrationTests}/**.cs]
+dotnet_diagnostic.CA1822.severity = suggestion
+dotnet_diagnostic.CA1859.severity = suggestion
+dotnet_diagnostic.CA1861.severity = suggestion
