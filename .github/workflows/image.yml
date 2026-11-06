@@ -1,15 +1,10 @@
 name: Image
 
-# Pull requests build and scan the image so a broken Dockerfile or a vulnerable base fails before merge.
+# Pull requests build and scan the image so a broken Dockerfile or a vulnerable base fails before merge. Every pull
+# request runs it, even a docs-only one, because branch protection requires its check and a skipped workflow never reports.
 # Only main publishes, to GitHub Container Registry, tagged with the commit.
 on:
   pull_request:
-    paths:
-      - Dockerfile
-      - .dockerignore
-      - Directory.Packages.props
-      - GrocerEase.*/**
-      - .github/workflows/image.yml
   push:
     branches: [main]
 
