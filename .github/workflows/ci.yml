@@ -4,6 +4,9 @@ on:
   pull_request:
   push:
     branches: [main]
+  # A new advisory appears without any push, so the dependency check also runs weekly.
+  schedule:
+    - cron: "17 5 * * 1"
 
 # A newer push to the same branch or PR makes the older run pointless.
 concurrency:
@@ -32,6 +35,12 @@ jobs:
 
       - name: Build
         run: dotnet build --configuration Release --no-restore
+
+      # `dotnet list package` exits 0 even when it finds something, so the output is searched.
+      - name: Vulnerable packages
+        run: |
+          dotnet list package --vulnerable --include-transitive --no-restore | tee vulnerable.txt
+          ! grep -q "has the following vulnerable packages" vulnerable.txt
 
       - name: Unit tests
         run: >
