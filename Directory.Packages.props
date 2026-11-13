@@ -8,7 +8,7 @@
   -->
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
-    <AspNetCoreVersion>10.0.14</AspNetCoreVersion>
+    <AspNetCoreVersion>11.0.0</AspNetCoreVersion>
   </PropertyGroup>
 
   <ItemGroup Label="Ships with ASP.NET Core / .NET">
